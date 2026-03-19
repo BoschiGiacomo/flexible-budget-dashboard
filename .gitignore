@@ -1,0 +1,16 @@
+.venv
+.env
+venv/
+env/
+ENV/
+
+.vscode/
+.idea/
+*.swp
+
+__pycache__/
+*.py[codz]
+*$py.class
+.pytest_cache/
+
+.webassets-cache
