@@ -3,6 +3,8 @@ import pandas as pd
 import dash_bootstrap_components as dbc
 from dash import Dash, dcc, html, Input, Output, callback
 
+import callbacks
+
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 upload_style = {
@@ -18,6 +20,8 @@ upload_style = {
 
 app.layout = dbc.Container(
     [
+        dcc.Store(id="params-data-store"),
+        dcc.Store(id="sales-data-store"),
         html.H1("Data Upload", style={"textAlign": "center"}),
         html.H2("Upload sales data and parameters here", style={"textAlign": "center"}),
         html.Hr(),
@@ -40,7 +44,7 @@ app.layout = dbc.Container(
                 dbc.Col(
                     [
                         dcc.Upload(
-                            id="parameters-upload",
+                            id="params-data-upload",
                             children=html.Div(
                                 [html.A("Upload"), " or Drop Parameters.json file"]
                             ),
