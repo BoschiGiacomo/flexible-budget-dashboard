@@ -20,6 +20,7 @@ app.layout = dbc.Container(
     [
         html.H1("Data Upload", style={"textAlign": "center"}),
         html.H2("Upload sales data and parameters here", style={"textAlign": "center"}),
+        html.Hr(),
         dbc.Row(
             [
                 dbc.Col(
@@ -52,6 +53,7 @@ app.layout = dbc.Container(
                 ),
             ]
         ),
+        html.Hr(),
     ],
     fluid=True,
 )
