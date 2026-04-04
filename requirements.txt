@@ -1,4 +1,6 @@
 numpy
 pandas
-dash
 plotly
+dash
+dash-bootstrap-components
+dash-ag-grid
