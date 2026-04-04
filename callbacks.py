@@ -29,6 +29,37 @@ def reconstruct_df(payload: dict) -> pd.DataFrame:
     return df
 
 
+def product_json_normalize(params: dict) -> pd.DataFrame:
+    products = params["products"]
+
+    rows = []
+
+    for code, product in products.items():
+        rows.append(
+            {
+                "product_code": code,
+                "name": product["name"],
+                "selling_price": product["selling_price"],
+                "inventory_ratio": product["inventory_ratio"],
+                "labour_hourly_cost": product["direct_labor"]["cost_per_hour"],
+                "minutes_per_unit": product["direct_labor"]["minutes_per_unit"],
+                "material_cost_per_kg": product["raw_materials"]["cost_per_kg"],
+                "kg_per_unit": product["raw_materials"]["kg_per_unit"],
+                "labour_hours_per_unit": product["lp_coefficients"][
+                    "labor_hours_per_unit"
+                ],
+                "material_units_per_unit": product["lp_coefficients"][
+                    "material_units_per_unit"
+                ],
+                "profit_margin_per_unit": product["lp_coefficients"][
+                    "profit_margin_per_unit"
+                ],
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def parse_contents(contents, filename):
     _, content_string = contents.split(",")
     _, ext = os.path.splitext(filename.lower())
@@ -125,3 +156,19 @@ def plot_sales_data(data):
     fig = px.line(df, x="month", y="sales_units", color="product", title=title)
 
     return fig
+
+
+@callback(
+    Output("product-data-table", "rowData"),
+    Output("product-data-table", "columnDefs"),
+    Input("params-data-store", "data"),
+)
+def construct_product_table(data):
+    if not data:
+        return [], []
+
+    df = product_json_normalize(data["data"])
+    records = df.to_dict("records")
+    cols = [{"field": c} for c in df.columns]
+
+    return records, cols

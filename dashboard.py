@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import dash_bootstrap_components as dbc
+import dash_ag_grid as dag
 from dash import Dash, dcc, html, Input, Output, callback
 
 import callbacks
@@ -58,6 +59,7 @@ app.layout = dbc.Container(
             ]
         ),
         html.Hr(),
+        html.H3("Sales Data", style={"textAlign": "center"}),
         dbc.Row(
             [
                 dbc.Col(
@@ -65,6 +67,29 @@ app.layout = dbc.Container(
                         dcc.Graph(id="sales-data-graph"),
                     ],
                     md=12,
+                ),
+            ],
+        ),
+        html.Hr(),
+        html.H3("Parameters Data", style={"textAlign": "center"}),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dag.AgGrid(
+                            id="product-data-table",
+                            columnDefs=[
+                                {"field": "product_code"},
+                            ],
+                            rowData=[],
+                            defaultColDef={
+                                "sortable": True,
+                                "filter": True,
+                                "resizable": True,
+                            },
+                            columnSize="autoSize",
+                        ),
+                    ],
                 ),
             ],
         ),
