@@ -74,24 +74,23 @@ app.layout = dbc.Container(
         html.H3("Parameters Data", style={"textAlign": "center"}),
         dbc.Row(
             [
-                dbc.Col(
-                    [
-                        dag.AgGrid(
-                            id="product-data-table",
-                            columnDefs=[
-                                {"field": "product_code"},
-                            ],
-                            rowData=[],
-                            defaultColDef={
-                                "sortable": True,
-                                "filter": True,
-                                "resizable": True,
-                            },
-                            columnSize="autoSize",
-                        ),
+                dag.AgGrid(
+                    id="product-data-table",
+                    columnDefs=[
+                        {"field": "product_code"},
                     ],
+                    rowData=[],
+                    defaultColDef={
+                        "sortable": True,
+                        "filter": True,
+                        "resizable": True,
+                    },
+                    columnSize="autoSize",
                 ),
             ],
+        ),
+        dbc.Row(
+            [dcc.Graph(id="params-overhead-pareto")],
         ),
     ],
     fluid=True,

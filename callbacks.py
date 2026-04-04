@@ -158,12 +158,13 @@ def plot_sales_data(data):
     return fig
 
 
+# Update json parameters table visualization
 @callback(
     Output("product-data-table", "rowData"),
     Output("product-data-table", "columnDefs"),
     Input("params-data-store", "data"),
 )
-def construct_product_table(data):
+def build_product_table(data):
     if not data:
         return [], []
 
@@ -172,3 +173,51 @@ def construct_product_table(data):
     cols = [{"field": c} for c in df.columns]
 
     return records, cols
+
+
+# update pareto plot with overhead from parameters
+@callback(
+    Output("params-overhead-pareto", "figure"),
+    Input("params-data-store", "data"),
+)
+def build_overhead_pareto(data):
+    if data is None or not data["ok"]:
+        raise PreventUpdate
+
+    overhead = (
+        pd.Series(data["data"]["overhead"]).drop("total").sort_values(ascending=False)
+    )
+    total = overhead.sum()
+    cum_amount = overhead.cumsum()
+
+    fig = px.bar(
+        x=overhead.index,
+        y=overhead.values,
+        title="Overhead Expense Participation",
+        labels={"x": "Category", "y": "Amount"},
+    )
+
+    fig.update_layout(
+        yaxis=dict(
+            title="Amount",
+            range=[0, total],
+        ),
+        yaxis2=dict(
+            title="Cumulative %",
+            overlaying="y",
+            side="right",
+            tickvals=[0, 0.25 * total, 0.5 * total, 0.75 * total, total],
+            ticktext=["0%", "25%", "50%", "75%", "100%"],
+            range=[0, total],
+        ),
+    )
+
+    fig.add_scatter(
+        x=overhead.index,
+        y=cum_amount,
+        mode="lines+markers",
+        name="Cumulative %",
+        yaxis="y2",
+    )
+
+    return fig
