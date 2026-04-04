@@ -58,6 +58,16 @@ app.layout = dbc.Container(
             ]
         ),
         html.Hr(),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dcc.Graph(id="sales-data-graph"),
+                    ],
+                    md=12,
+                ),
+            ],
+        ),
     ],
     fluid=True,
 )

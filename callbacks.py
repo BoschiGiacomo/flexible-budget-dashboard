@@ -4,6 +4,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import plotly.express as px
 from dash import Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 
@@ -70,6 +71,7 @@ def parse_contents(contents, filename):
     return data_out
 
 
+# Store Uploaded sales data
 @callback(
     Output("sales-data-store", "data"),
     Input("sales-data-upload", "contents"),
@@ -89,6 +91,7 @@ def store_sales_data(contents, filename):
     return data
 
 
+# Store uploaded parameters data
 @callback(
     Output("params-data-store", "data"),
     Input("params-data-upload", "contents"),
@@ -101,3 +104,24 @@ def store_params_data(contents, filename):
     data = parse_contents(contents, filename)
 
     return data
+
+
+# Update sales data graph
+@callback(
+    Output("sales-data-graph", "figure"),
+    Input("sales-data-store", "data"),
+)
+def plot_sales_data(data):
+    if data is None or not data["ok"]:
+        raise PreventUpdate
+
+    df = reconstruct_df(data["data"])
+
+    if data["filename"] is not None:
+        title = data["filename"]
+    else:
+        title = "Uploaded Sales Data"
+
+    fig = px.line(df, x="month", y="sales_units", color="product", title=title)
+
+    return fig
