@@ -52,14 +52,14 @@ def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
     if not handle_missing:
         materials_df["ending_material_inventory"] = (
             materials_df.groupby("product")["materials_for_production"].shift(-1)
-            * materials_df["raw_mat_start_inv"]
+            * materials_df["raw_mat_inv_rate"]
         )
 
     # else: handle_missing=True is yet to be implemented like in the above case
 
     materials_df["beginning_materials_inventory"] = (
         materials_df.groupby("product")["materials_for_production"]
-        * materials_df["raw_mat_start_inv"]
+        * materials_df["raw_mat_inv_rate"]
     )
 
     materials_df["materials_needs"] = (
@@ -71,9 +71,11 @@ def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
         materials_df["materials_needs"] - materials_df["beginning_materials_inventory"]
     )
 
-    return materials_df
+    materials_df["expense_for_materials"] = (
+        materials_df["materials_purchases"] * materials_df["material_cost_per_kg"]
+    )
 
-def total_materials()
+    return materials_df
 
 
 def compute_budgets(sales_payload, params_payload, handle_missing=False):
@@ -105,16 +107,14 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         [
             {
                 "product": code,
-                "material_cost_per_kg": product["material_cost_per_kg"],
-                "material_kg_per_unit": product["kg_per_unit"],
+                "material_cost_per_kg": product["raw_materials"]["cost_per_kg"],
+                "material_kg_per_unit": product["raw_materials"]["kg_per_unit"],
             }
-            for code, product in params["product"].items()
+            for code, product in params["products"].items()
         ]
     )
-    raw_mat_df.loc[:]["raw_mat_start_inv"] = raw_mat_inv
+    raw_mat_df["raw_mat_inv_rate"] = raw_mat_inv
 
-    materials_df = compute_materials_budget(
-        production_df, raw_mat_df, handle_missing=False
-    )
+    materials_df = compute_materials_budget(production_df, raw_mat_df, handle_missing)
 
     return
