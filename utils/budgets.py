@@ -2,11 +2,11 @@ import pandas as pd
 from utils import transforms
 
 
-def compute_sales_budget(sales_df, prices_df):
-    budget_df = sales_df.merge(prices_df, on="product", how="left")
-    budget_df["revenue"] = budget_df["sales_units"] * budget_df["selling_price"]
+def compute_sales_budget(data_df, prices_df):
+    sales_df = data_df.merge(prices_df, on="product", how="left")
+    sales_df["revenue"] = sales_df["sales_units"] * sales_df["selling_price"]
 
-    return budget_df
+    return sales_df
 
 
 def compute_production_budget(budget_df, inv_df, handle_missing=False):
@@ -27,8 +27,7 @@ def compute_production_budget(budget_df, inv_df, handle_missing=False):
         # shifting the column of ending invetory up to the next month in case
         # the rate is allowed to dynamically change in the future
         production_df["beginning_inv"] = (
-            production_df.groupby("product")["sales_units"]
-            * production_df["inventory_ratio"]
+            production_df["sales_units"] * production_df["inventory_ratio"]
         )
 
         production_df["total_production"] = (
@@ -58,8 +57,7 @@ def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
     # else: handle_missing=True is yet to be implemented like in the above case
 
     materials_df["beginning_materials_inventory"] = (
-        materials_df.groupby("product")["materials_for_production"]
-        * materials_df["raw_mat_inv_rate"]
+        materials_df["materials_for_production"] * materials_df["raw_mat_inv_rate"]
     )
 
     materials_df["materials_needs"] = (
@@ -78,8 +76,53 @@ def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
     return materials_df
 
 
+def compute_labor_budget(production_df, direct_labor_df):
+    labor_df = production_df.merge(direct_labor_df, on="product", how="left")
+
+    labor_df["total_labor_time"] = (
+        labor_df["total_production"] * labor_df["hours_per_unit"]
+    )
+
+    labor_df["total_direct_labor_cost"] = (
+        labor_df["total_labor_time"] * labor_df["labor_cost_hour"]
+    )
+
+    return labor_df
+
+
+def compute_cashflow(sales_df, cash_collection_df):
+    cashflow_df = sales_df.merge(cash_collection_df, on="product", how="left")
+
+    cashflow_df["collected_same_month"] = (
+        cashflow_df["revenue"] * cashflow_df["collection_rate_0"]
+    )
+
+    cashflow_df["collected_lag1"] = (
+        cashflow_df.groupby("product")["revenue"].shift(1)
+        * cashflow_df["collection_rate_1"]
+    )
+
+    cashflow_df["collected_lag2"] = (
+        cashflow_df.groupby("product")["revenue"].shift(2)
+        * cashflow_df["collection_rate_2"]
+    )
+
+    cashflow_df["total_cash_collected"] = (
+        cashflow_df["collected_same_month"]
+        + cashflow_df["collected_lag1"]
+        + cashflow_df["collected_lag2"]
+    )
+
+    return cashflow_df
+
+
+def compute_overhead():
+    # STILL TODO
+    return
+
+
 def compute_budgets(sales_payload, params_payload, handle_missing=False):
-    sales_df = transforms.reconstruct_df(sales_payload["data"])
+    data_df = transforms.reconstruct_df(sales_payload["data"])
 
     params = params_payload["data"]
 
@@ -90,7 +133,7 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         ]
     )
 
-    budget_df = compute_sales_budget(sales_df, price_df)
+    sales_df = compute_sales_budget(data_df, price_df)
 
     inv_df = pd.DataFrame(
         [
@@ -99,7 +142,7 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         ]
     )
 
-    production_df = compute_production_budget(budget_df, inv_df, handle_missing)
+    production_df = compute_production_budget(sales_df, inv_df, handle_missing)
 
     raw_mat_inv = params["raw_materials_inventory"]["ending_inventory_rate"]
 
@@ -117,4 +160,42 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
 
     materials_df = compute_materials_budget(production_df, raw_mat_df, handle_missing)
 
-    return
+    # For the future might be worth implementing a minutes/hours flag in case
+    # a user wants to input values as hours and not minutes
+
+    direct_labor_df = pd.DataFrame(
+        [
+            {
+                "product": code,
+                "hours_per_unit": product["direct_labor"]["minutes_per_unit"] / 60,
+                "labor_cost_hour": product["direct_labor"]["cost_per_hour"],
+            }
+            for code, product in params["products"].items()
+        ]
+    )
+
+    labor_df = compute_labor_budget(materials_df, direct_labor_df)
+
+    cash_collection_df = pd.DataFrame(
+        [
+            {
+                "product": code,
+                "collection_rate_0": rates[0],
+                "collection_rate_1": rates[1],
+                "collection_rate_2": rates[2],
+            }
+            for code, rates in params["cash_collection_policies"].items
+        ]
+    )
+
+    cashflow_df = compute_cashflow(sales_df, cash_collection_df)
+
+    costs_df = pd.DataFrame()
+    costs_df = labor_df["month"].unique()
+    costs_df["expense_for_materials"] = labor_df.groupby("month")[
+        ["expense_for_materials", "total_direct_labor_cost"]
+    ].sum()
+
+    payment_policies = params["cash_payment_policies"]
+
+    return labor_df, cashflow_df
