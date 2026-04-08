@@ -23,6 +23,8 @@ app.layout = dbc.Container(
     [
         dcc.Store(id="params-data-store"),
         dcc.Store(id="sales-data-store"),
+        dcc.Store(id="budgets-data-store"),
+        dcc.Store(id="cashflow-data-store"),
         html.H1("Data Upload", style={"textAlign": "center"}),
         html.H2("Upload sales data and parameters here", style={"textAlign": "center"}),
         html.Hr(),

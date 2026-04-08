@@ -3,7 +3,7 @@ import plotly.express as px
 from dash import Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 
-from utils import transforms
+from utils import transforms, budgets
 
 
 # Store Uploaded sales data
@@ -130,3 +130,24 @@ def build_overhead_pareto(data):
     )
 
     return fig
+
+
+# store budget and cashflow calculations
+@callback(
+    Output("budgets-data-store", "data"),
+    Output("cashflow-data-store", "data"),
+    Input("sales-data-store", "modified_timestamp"),
+    Input("params-data-store", "modified_timestamp"),
+    State("sales-data-store", "data"),
+    State("params-data-store", "data"),
+)
+def store_budget_data(sales_ts, params_ts, sales_data, params_data):
+    if sales_data is None or params_data is None:
+        raise PreventUpdate
+
+    budget_df, cashflow_df = budgets.compute_budgets(sales_data, params_data)
+
+    return (
+        transforms.deconstruct_df(budget_df),
+        transforms.deconstruct_df(cashflow_df),
+    )
