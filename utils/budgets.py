@@ -192,6 +192,7 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
 
     cashflow_df = compute_cashflow(sales_df, cash_collection_df)
 
+    # TODO: From here complete the budgeting with overhead, contribution margin, expenses
     costs_df = pd.DataFrame(
         labor_df.groupby("month")[["expense_for_materials", "total_direct_labor_cost"]]
         .sum()

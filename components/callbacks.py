@@ -183,13 +183,13 @@ def update_budget_tables(data):
     def to_grid(cols):
         subset = data_df[cols].round(2).reset_index(drop=True)
         rows = subset[cols].to_dict("records")  # type: ignore
-        cols = [
+        col_defs = [
             {"field": c, "headerName": name}
             for c, name in zip(
                 subset.columns, transforms.pretty_labels(list(subset.columns))
             )
         ]
-        return rows, cols
+        return rows, col_defs
 
     sales_rows, sales_cols = to_grid(["product", "month", "sales_units", "revenue"])
     prod_rows, prod_cols = to_grid(
@@ -235,6 +235,9 @@ def update_budget_tables(data):
     Input("budgets-data-store", "data"),
 )
 def build_sales_summary(budgets_df):
+    if budgets_df is None:
+        raise PreventUpdate
+
     budgets_df = transforms.reconstruct_df(budgets_df)
     fig = px.bar(
         budgets_df,
@@ -242,6 +245,7 @@ def build_sales_summary(budgets_df):
         y="revenue",
         color="product",
         custom_data=["sales_units"],
+        barmode="stack",
     )
     fig.update_traces(
         hovertemplate=(
@@ -252,6 +256,38 @@ def build_sales_summary(budgets_df):
             "<extra></extra>"
         )
     )
+    return fig
+
+
+@callback(
+    Output("inventory-movement-graph", "figure"),
+    Input("budgets-data-store", "data"),
+)
+def build_inventory_movement(budgets_df):
+    if budgets_df is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+
+    inv_df = budgets_df[["product", "month", "beginning_inv", "desired_end_inv"]].copy()
+    inv_df["month"] = pd.to_datetime(inv_df["month"])
+    inv_df = inv_df.sort_values("month")  # type: ignore
+
+    melted = inv_df.melt(
+        id_vars=["product", "month"],
+        value_vars=["beginning_inv", "desired_end_inv"],
+        var_name="type",
+        value_name="units",
+    )
+
+    fig = px.line(
+        melted,
+        x="month",
+        y="units",
+        color="product",
+        line_dash="type",
+    )
+
     return fig
 
 

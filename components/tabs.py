@@ -2,9 +2,6 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 from dash import dcc, html
 
-from components import callbacks
-import dashboard
-
 upload_style = {
     "width": "100%",
     "height": "60px",
@@ -126,6 +123,8 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.H3("Inventory Movements", style={"textAlign": "center"}),
+                    dcc.Graph(id="inventory-movement-graph"),
                 ],
             ),
             dbc.AccordionItem(
