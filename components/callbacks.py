@@ -45,9 +45,10 @@ def store_params_data(contents, filename):
 # Update sales data graph
 @callback(
     Output("sales-data-graph", "figure"),
-    Input("sales-data-store", "data"),
+    Input("sales-data-store", "modified_timestamp"),
+    State("sales-data-store", "data"),
 )
-def plot_sales_data(data):
+def plot_sales_data(timestamp, data):
     if data is None or not data["ok"]:
         raise PreventUpdate
 
@@ -67,9 +68,10 @@ def plot_sales_data(data):
 @callback(
     Output("product-data-table", "rowData"),
     Output("product-data-table", "columnDefs"),
-    Input("params-data-store", "data"),
+    Input("params-data-store", "modified_timestamp"),
+    State("params-data-store", "data"),
 )
-def build_product_table(data):
+def build_product_table(timestamp, data):
     if not data:
         return [], []
 
@@ -83,9 +85,10 @@ def build_product_table(data):
 # update pareto plot with overhead from parameters
 @callback(
     Output("params-overhead-pareto", "figure"),
-    Input("params-data-store", "data"),
+    Input("params-data-store", "modified_timestamp"),
+    State("params-data-store", "data"),
 )
-def build_overhead_pareto(data):
+def build_overhead_pareto(timestamp, data):
     if data is None or not data["ok"]:
         raise PreventUpdate
 
@@ -175,7 +178,7 @@ def update_budget_tables(data):
     # little helper function to reduce boilerplate, decide if upgrade to global scope
     # returns the format expected by AgGrid
     def to_grid(cols):
-        subset = data_df[cols]
+        subset = data_df[cols].round(2).reset_index(drop=True)
         return subset[cols].to_dict("records"), [{"field": c} for c in cols]  # type: ignore
 
     sales_rows, sales_cols = to_grid(["product", "month", "sales_units", "revenue"])
