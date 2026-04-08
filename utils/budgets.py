@@ -4,7 +4,7 @@ from utils import transforms
 
 def compute_sales_budget(data_df, prices_df) -> pd.DataFrame:
     sales_df = data_df.merge(prices_df, on="product", how="left")
-    sales_df["revenue"] = sales_df["sales_units"] * sales_df["selling_price"]
+    sales_df["revenue"] = (sales_df["sales_units"] * sales_df["selling_price"]).round(2)
 
     return sales_df
 
@@ -20,7 +20,7 @@ def compute_production_budget(budget_df, inv_df, handle_missing=False) -> pd.Dat
         production_df["desired_end_inv"] = (
             production_df.groupby("product")["sales_units"].shift(-1)
             * production_df["inventory_ratio"]
-        )
+        ).round(0)
 
         # for future proofing, it might be necessary to switch from this implementation
         # that we saw in class (current sales * inv ratio = beginning inv) to
@@ -28,7 +28,7 @@ def compute_production_budget(budget_df, inv_df, handle_missing=False) -> pd.Dat
         # the rate is allowed to dynamically change in the future
         production_df["beginning_inv"] = (
             production_df["sales_units"] * production_df["inventory_ratio"]
-        )
+        ).round(0)
 
         production_df["total_production"] = (
             production_df["sales_units"]
@@ -48,19 +48,19 @@ def compute_materials_budget(
 
     materials_df["materials_for_production"] = (
         materials_df["total_production"] * materials_df["material_kg_per_unit"]
-    )
+    ).round(0)
 
     if not handle_missing:
         materials_df["ending_material_inventory"] = (
             materials_df.groupby("product")["materials_for_production"].shift(-1)
             * materials_df["raw_mat_inv_rate"]
-        )
+        ).round(0)
 
     # else: handle_missing=True is yet to be implemented like in the above case
 
     materials_df["beginning_materials_inventory"] = (
         materials_df["materials_for_production"] * materials_df["raw_mat_inv_rate"]
-    )
+    ).round(0)
 
     materials_df["materials_needs"] = (
         materials_df["materials_for_production"]
@@ -73,7 +73,7 @@ def compute_materials_budget(
 
     materials_df["expense_for_materials"] = (
         materials_df["materials_purchases"] * materials_df["material_cost_per_kg"]
-    )
+    ).round(2)
 
     return materials_df
 
@@ -83,11 +83,11 @@ def compute_labor_budget(production_df, direct_labor_df) -> pd.DataFrame:
 
     labor_df["total_labor_time"] = (
         labor_df["total_production"] * labor_df["hours_per_unit"]
-    )
+    ).round(2)
 
     labor_df["total_direct_labor_cost"] = (
         labor_df["total_labor_time"] * labor_df["labor_cost_hour"]
-    )
+    ).round(2)
 
     return labor_df
 
@@ -97,17 +97,17 @@ def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
 
     cashflow_df["collected_same_month"] = (
         cashflow_df["revenue"] * cashflow_df["collection_rate_0"]
-    )
+    ).round(2)
 
     cashflow_df["collected_lag1"] = (
         cashflow_df.groupby("product")["revenue"].shift(1)
         * cashflow_df["collection_rate_1"]
-    )
+    ).round(2)
 
     cashflow_df["collected_lag2"] = (
         cashflow_df.groupby("product")["revenue"].shift(2)
         * cashflow_df["collection_rate_2"]
-    )
+    ).round(2)
 
     cashflow_df["total_cash_collected"] = (
         cashflow_df["collected_same_month"]

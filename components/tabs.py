@@ -107,6 +107,8 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.H3("Sales Summary", style={"textAlign": "center"}),
+                    dcc.Graph(id="sales-stacked-bar-graph"),
                 ],
             ),
             dbc.AccordionItem(

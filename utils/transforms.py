@@ -96,3 +96,7 @@ def parse_contents(contents, filename):
     }
 
     return data_out
+
+
+def pretty_labels(labels: list) -> list:
+    return [label.replace("_", " ").title() for label in labels]

@@ -77,7 +77,10 @@ def build_product_table(timestamp, data):
 
     df = transforms.product_json_normalize(data["data"])
     records = df.to_dict("records")
-    cols = [{"field": c} for c in df.columns]
+    cols = [
+        {"field": c, "headerName": name}
+        for c, name in zip(df.columns, transforms.pretty_labels(list(df.columns)))
+    ]
 
     return records, cols
 
@@ -179,7 +182,14 @@ def update_budget_tables(data):
     # returns the format expected by AgGrid
     def to_grid(cols):
         subset = data_df[cols].round(2).reset_index(drop=True)
-        return subset[cols].to_dict("records"), [{"field": c} for c in cols]  # type: ignore
+        rows = subset[cols].to_dict("records")  # type: ignore
+        cols = [
+            {"field": c, "headerName": name}
+            for c, name in zip(
+                subset.columns, transforms.pretty_labels(list(subset.columns))
+            )
+        ]
+        return rows, cols
 
     sales_rows, sales_cols = to_grid(["product", "month", "sales_units", "revenue"])
     prod_rows, prod_cols = to_grid(
@@ -218,6 +228,31 @@ def update_budget_tables(data):
         lab_rows,
         lab_cols,
     )
+
+
+@callback(
+    Output("sales-stacked-bar-graph", "figure"),
+    Input("budgets-data-store", "data"),
+)
+def build_sales_summary(budgets_df):
+    budgets_df = transforms.reconstruct_df(budgets_df)
+    fig = px.bar(
+        budgets_df,
+        x="month",
+        y="revenue",
+        color="product",
+        custom_data=["sales_units"],
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Product: %{fullData.name}<br>"
+            "Revenue: €%{y:,.2f}<br>"
+            "Units: %{customdata[0]:,}<br>"
+            "<extra></extra>"
+        )
+    )
+    return fig
 
 
 # lazy tab loader for performacne
