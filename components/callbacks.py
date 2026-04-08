@@ -1,8 +1,9 @@
 import pandas as pd
 import plotly.express as px
-from dash import Input, Output, State, callback
+from dash import Input, Output, State, callback, html
 from dash.exceptions import PreventUpdate
 
+from components import tabs
 from utils import transforms, budgets
 
 
@@ -151,3 +152,81 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
         transforms.deconstruct_df(budget_df),
         transforms.deconstruct_df(cashflow_df),
     )
+
+
+# Retrieve budgets from data sotre and update all the bugets
+@callback(
+    Output("sales-budget-table", "rowData"),
+    Output("sales-budget-table", "columnDefs"),
+    Output("production-budget-table", "rowData"),
+    Output("production-budget-table", "columnDefs"),
+    Output("materials-budget-table", "rowData"),
+    Output("materials-budget-table", "columnDefs"),
+    Output("labor-budget-table", "rowData"),
+    Output("labor-budget-table", "columnDefs"),
+    Input("budgets-data-store", "data"),
+)
+def update_budget_tables(data):
+    if data is None:
+        raise PreventUpdate
+
+    data_df = transforms.reconstruct_df(data)
+
+    # little helper function to reduce boilerplate, decide if upgrade to global scope
+    # returns the format expected by AgGrid
+    def to_grid(cols):
+        subset = data_df[cols]
+        return subset[cols].to_dict("records"), [{"field": c} for c in cols]  # type: ignore
+
+    sales_rows, sales_cols = to_grid(["product", "month", "sales_units", "revenue"])
+    prod_rows, prod_cols = to_grid(
+        [
+            "product",
+            "month",
+            "sales_units",
+            "desired_end_inv",
+            "beginning_inv",
+            "total_production",
+        ]
+    )
+    mat_rows, mat_cols = to_grid(
+        [
+            "product",
+            "month",
+            "materials_for_production",
+            "ending_material_inventory",
+            "materials_needs",
+            "beginning_materials_inventory",
+            "materials_purchases",
+            "expense_for_materials",
+        ]
+    )
+    lab_rows, lab_cols = to_grid(
+        ["product", "month", "total_labor_time", "total_direct_labor_cost"]
+    )
+
+    return (
+        sales_rows,
+        sales_cols,
+        prod_rows,
+        prod_cols,
+        mat_rows,
+        mat_cols,
+        lab_rows,
+        lab_cols,
+    )
+
+
+# lazy tab loader for performacne
+@callback(
+    Output("tab-content", "children"),
+    Input("tabs", "active_tab"),
+)
+def render_tab(active_tab):
+    match active_tab:
+        case "tab-upload":
+            return tabs.upload_layout
+        case "tab-budgets":
+            return tabs.budgets_layout
+        case _:
+            return html.Div("404")
