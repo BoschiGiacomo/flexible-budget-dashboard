@@ -2,14 +2,14 @@ import pandas as pd
 from utils import transforms
 
 
-def compute_sales_budget(data_df, prices_df):
+def compute_sales_budget(data_df, prices_df) -> pd.DataFrame:
     sales_df = data_df.merge(prices_df, on="product", how="left")
     sales_df["revenue"] = sales_df["sales_units"] * sales_df["selling_price"]
 
     return sales_df
 
 
-def compute_production_budget(budget_df, inv_df, handle_missing=False):
+def compute_production_budget(budget_df, inv_df, handle_missing=False) -> pd.DataFrame:
     production_df = budget_df.merge(inv_df, on="product", how="left")
 
     if not handle_missing:
@@ -41,7 +41,9 @@ def compute_production_budget(budget_df, inv_df, handle_missing=False):
     return production_df
 
 
-def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
+def compute_materials_budget(
+    production_df, raw_mat_df, handle_missing=False
+) -> pd.DataFrame:
     materials_df = production_df.merge(raw_mat_df, on="product", how="left")
 
     materials_df["materials_for_production"] = (
@@ -76,7 +78,7 @@ def compute_materials_budget(production_df, raw_mat_df, handle_missing=False):
     return materials_df
 
 
-def compute_labor_budget(production_df, direct_labor_df):
+def compute_labor_budget(production_df, direct_labor_df) -> pd.DataFrame:
     labor_df = production_df.merge(direct_labor_df, on="product", how="left")
 
     labor_df["total_labor_time"] = (
@@ -90,7 +92,7 @@ def compute_labor_budget(production_df, direct_labor_df):
     return labor_df
 
 
-def compute_cashflow(sales_df, cash_collection_df):
+def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
     cashflow_df = sales_df.merge(cash_collection_df, on="product", how="left")
 
     cashflow_df["collected_same_month"] = (
@@ -184,17 +186,17 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
                 "collection_rate_1": rates[1],
                 "collection_rate_2": rates[2],
             }
-            for code, rates in params["cash_collection_policies"].items
+            for code, rates in params["cash_collection_policies"].items()
         ]
     )
 
     cashflow_df = compute_cashflow(sales_df, cash_collection_df)
 
-    costs_df = pd.DataFrame()
-    costs_df = labor_df["month"].unique()
-    costs_df["expense_for_materials"] = labor_df.groupby("month")[
-        ["expense_for_materials", "total_direct_labor_cost"]
-    ].sum()
+    costs_df = pd.DataFrame(
+        labor_df.groupby("month")[["expense_for_materials", "total_direct_labor_cost"]]
+        .sum()
+        .reset_index()  # type: ignore
+    )
 
     payment_policies = params["cash_payment_policies"]
 
