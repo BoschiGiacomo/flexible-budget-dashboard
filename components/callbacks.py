@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from dash import Input, Output, State, callback, html
 from dash.exceptions import PreventUpdate
 
@@ -286,6 +287,113 @@ def build_inventory_movement(budgets_df):
         y="units",
         color="product",
         line_dash="type",
+    )
+
+    return fig
+
+
+@callback(
+    Output("waterfall-quarter-dropdown", "options"),
+    Output("waterfall-quarter-dropdown", "value"),
+    Input("budgets-data-store", "data"),
+)
+def populate_quarter_dropdown(budgets_df):
+    if budgets_df is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+
+    budgets_df["quarter"] = (
+        pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype(str)
+    )
+    quarters = sorted(budgets_df["quarter"].unique())
+    options = [{"label": q, "value": q} for q in quarters]
+
+    return options, [quarters[0]]
+
+
+@callback(
+    Output("waterfall-product-dropdown", "options"),
+    Output("waterfall-product-dropdown", "value"),
+    Input("budgets-data-store", "data"),
+    State("params-data-store", "data"),
+)
+def populate_product_dropdown(budgets_df, params):
+    if budgets_df is None or params is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+    products = sorted(budgets_df["product"].unique())
+    options = [
+        {"label": params["data"]["products"][code]["name"], "value": code}
+        for code in products
+    ]
+
+    return options, products[0]
+
+
+@callback(
+    Output("inventory-waterfall-chart", "figure"),
+    Input("waterfall-quarter-dropdown", "value"),
+    Input("waterfall-product-dropdown", "value"),
+    Input("waterfall-mode", "value"),
+    Input("budgets-data-store", "data"),
+)
+def build_inventory_waterfall(quarters, product, mode, budgets_df):
+    if quarters is None or product is None or budgets_df is None:
+        raise PreventUpdate
+
+    if isinstance(quarters, str):
+        quarters = [quarters]
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df["quarter"] = (
+        pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+    )
+
+    filtered = (
+        budgets_df[
+            (budgets_df["quarter"].isin(quarters)) & (budgets_df["product"] == product)
+        ]  # type: ignore
+        .sort_values("month")
+        .reset_index(drop=True)
+    )
+
+    x_outer, x_inner, measures, values = [], [], [], []
+
+    x_outer.append(filtered["month"].iloc[0])
+    x_inner.append("Start Inv")
+    measures.append("absolute")
+    values.append(filtered["beginning_inv"].iloc[0])
+
+    match mode:
+        case "buildup":
+            for _, row in filtered.iterrows():
+                month = row["month"]
+                x_outer += [month, month, month]
+                x_inner += ["Prod", "Sales", "End Inv"]
+                measures += ["relative", "relative", "total"]
+                values += [row["total_production"], -row["sales_units"], 0]
+
+        case "delta":
+            for _, row in filtered.iterrows():
+                x_outer.append(row["month"])
+                x_inner.append("Net Inventory")
+                measures.append("relative")
+                values.append(row["total_production"] - row["sales_units"])
+
+            x_outer.append(filtered["month"].iloc[-1])
+            x_inner.append("End Inv")
+            measures.append("total")
+            values.append(0)
+
+    fig = go.Figure(
+        go.Waterfall(
+            orientation="v",
+            measure=measures,
+            x=[x_outer, x_inner],
+            y=values,
+        )
     )
 
     return fig

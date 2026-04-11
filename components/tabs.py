@@ -125,6 +125,48 @@ budgets_layout = [
                     ),
                     html.H3("Inventory Movements", style={"textAlign": "center"}),
                     dcc.Graph(id="inventory-movement-graph"),
+                    html.Hr(),
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                [
+                                    dcc.Dropdown(
+                                        id="waterfall-quarter-dropdown",
+                                        options=[],
+                                        value=None,
+                                        multi=True,
+                                    ),
+                                ],
+                                md=5,
+                            ),
+                            dbc.Col(
+                                [
+                                    dcc.Dropdown(
+                                        id="waterfall-product-dropdown",
+                                        options=[],
+                                        value=None,
+                                    ),
+                                ],
+                                md=5,
+                            ),
+                            dbc.Col(
+                                [
+                                    dcc.RadioItems(
+                                        id="waterfall-mode",
+                                        options=[
+                                            {"label": "Build-up", "value": "buildup"},
+                                            {"label": "Delta", "value": "delta"},
+                                        ],
+                                        value="buildup",
+                                        inline=True,
+                                    ),
+                                ],
+                                md=2,
+                            ),
+                        ]
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="inventory-waterfall-chart"),
                 ],
             ),
             dbc.AccordionItem(
