@@ -351,23 +351,28 @@ def build_inventory_waterfall(quarters, product, mode, budgets_df):
         pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
     )
 
+    # month_dt is a dummy column to allow sorting by datetime to fix misaligned sorting bug
     filtered = (
         budgets_df[
             (budgets_df["quarter"].isin(quarters)) & (budgets_df["product"] == product)
-        ]  # type: ignore
-        .sort_values("month")
+        ]
+        .assign(month_dt=lambda df: pd.to_datetime(df["month"]))
+        .sort_values("month_dt")
         .reset_index(drop=True)
     )
 
-    x_outer, x_inner, measures, values = [], [], [], []
+    if filtered.empty:
+        raise PreventUpdate
 
-    x_outer.append(filtered["month"].iloc[0])
-    x_inner.append("Start Inv")
-    measures.append("absolute")
-    values.append(filtered["beginning_inv"].iloc[0])
+    x_outer, x_inner, measures, values = [], [], [], []
 
     match mode:
         case "buildup":
+            x_outer.append(filtered["month"].iloc[0])
+            x_inner.append("Start Inv")
+            measures.append("absolute")
+            values.append(filtered["beginning_inv"].iloc[0])
+
             for _, row in filtered.iterrows():
                 month = row["month"]
                 x_outer += [month, month, month]
@@ -376,13 +381,18 @@ def build_inventory_waterfall(quarters, product, mode, budgets_df):
                 values += [row["total_production"], -row["sales_units"], 0]
 
         case "delta":
+            x_outer.append(filtered["quarter"].iloc[0])
+            x_inner.append("Start Inv")
+            measures.append("absolute")
+            values.append(filtered["beginning_inv"].iloc[0])
+
             for _, row in filtered.iterrows():
-                x_outer.append(row["month"])
-                x_inner.append("Net Inventory")
+                x_outer.append(row["quarter"])
+                x_inner.append(row["month"])
                 measures.append("relative")
                 values.append(row["total_production"] - row["sales_units"])
 
-            x_outer.append(filtered["month"].iloc[-1])
+            x_outer.append(filtered["quarter"].iloc[-1])
             x_inner.append("End Inv")
             measures.append("total")
             values.append(0)
