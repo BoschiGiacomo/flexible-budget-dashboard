@@ -87,6 +87,19 @@ upload_layout = [
 budgets_layout = [
     html.H1("Budgets view", style={"textAlign": "center"}),
     html.Hr(),
+    dbc.Col(
+        dcc.RadioItems(
+            id="table-view-mode",
+            options=[
+                {"label": "Monthly", "value": "monthly"},
+                {"label": "Quarterly", "value": "quarterly"},
+            ],
+            value="monthly",
+            inline=True,
+        ),
+        className="d-flex justify-content-center align-items-center",
+    ),
+    html.Hr(),
     dbc.Accordion(
         [
             dbc.AccordionItem(
@@ -184,6 +197,9 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3("Materials Overview", style={"textAlign": "center"}),
+                    dcc.Graph(id="materials-expenses-stacked"),
                 ],
             ),
             dbc.AccordionItem(

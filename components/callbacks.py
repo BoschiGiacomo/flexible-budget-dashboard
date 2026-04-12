@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas.core.arrays import period
 import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State, callback, html
@@ -172,12 +173,60 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
     Output("labor-budget-table", "rowData"),
     Output("labor-budget-table", "columnDefs"),
     Input("budgets-data-store", "data"),
+    Input("table-view-mode", "value"),
 )
-def update_budget_tables(data):
+def update_budget_tables(data, view_mode):
     if data is None:
         raise PreventUpdate
 
     data_df = transforms.reconstruct_df(data)
+
+    period_col = "month"
+
+    match view_mode:
+        case "quarterly":
+
+            period_col = "quarter"
+
+            data_df["quarter"] = (
+                pd.to_datetime(data_df["month"]).dt.to_period("Q").astype(str)
+            )
+
+            inv_agg = (
+                data_df.groupby(["product", "quarter"])
+                .agg(
+                    beginning_inv=("beginning_inv", "first"),
+                    desired_end_inv=("desired_end_inv", "last"),
+                )
+                .reset_index()
+            )
+
+            mat_inv_agg = (
+                data_df.groupby(["product", "quarter"])
+                .agg(
+                    beginning_materials_inventory=(
+                        "beginning_materials_inventory",
+                        "first",
+                    ),
+                    ending_material_inventory=("ending_material_inventory", "last"),
+                )
+                .reset_index()
+            )
+
+            data_df = data_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+            data_df["beginning_inv"] = inv_agg["beginning_inv"].values
+            data_df["desired_end_inv"] = inv_agg["desired_end_inv"].values
+
+            data_df["beginning_materials_inventory"] = mat_inv_agg[
+                "beginning_materials_inventory"
+            ].values
+            data_df["ending_material_inventory"] = mat_inv_agg[
+                "ending_material_inventory"
+            ].values
+
+        case "monthly":
+            pass
 
     # little helper function to reduce boilerplate, decide if upgrade to global scope
     # returns the format expected by AgGrid
@@ -192,11 +241,11 @@ def update_budget_tables(data):
         ]
         return rows, col_defs
 
-    sales_rows, sales_cols = to_grid(["product", "month", "sales_units", "revenue"])
+    sales_rows, sales_cols = to_grid(["product", period_col, "sales_units", "revenue"])
     prod_rows, prod_cols = to_grid(
         [
             "product",
-            "month",
+            period_col,
             "sales_units",
             "desired_end_inv",
             "beginning_inv",
@@ -206,7 +255,7 @@ def update_budget_tables(data):
     mat_rows, mat_cols = to_grid(
         [
             "product",
-            "month",
+            period_col,
             "materials_for_production",
             "ending_material_inventory",
             "materials_needs",
@@ -216,7 +265,7 @@ def update_budget_tables(data):
         ]
     )
     lab_rows, lab_cols = to_grid(
-        ["product", "month", "total_labor_time", "total_direct_labor_cost"]
+        ["product", period_col, "total_labor_time", "total_direct_labor_cost"]
     )
 
     return (
@@ -403,6 +452,41 @@ def build_inventory_waterfall(quarters, product, mode, budgets_df):
             measure=measures,
             x=[x_outer, x_inner],
             y=values,
+        )
+    )
+
+    return fig
+
+
+@callback(
+    Output("materials-expenses-stacked", "figure"),
+    Input("budgets-data-store", "data"),
+)
+def build_materials_expense_bar(budgets_df):
+    if budgets_df is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df.dropna(inplace=True)
+    # Nans are dropped ATM, which means the last 2 months gets always dropped
+    # this might change if a NaN handling policy is introduced in the budgets calculation
+
+    fig = px.bar(
+        budgets_df,
+        x="month",
+        y="expense_for_materials",
+        custom_data=["materials_purchases"],
+        color="product",
+        barmode="stack",
+    )
+
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Product: %{fullData.name}<br>"
+            "Expenses: €%{y:,.2f}<br>"
+            "Purchases: %{customdata[0]:,}<br>"
+            "<extra></extra>"
         )
     )
 
