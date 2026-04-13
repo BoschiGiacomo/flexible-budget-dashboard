@@ -89,7 +89,7 @@ budgets_layout = [
     html.Hr(),
     dbc.Col(
         dcc.RadioItems(
-            id="table-view-mode",
+            id="budgets-view-mode",
             options=[
                 {"label": "Monthly", "value": "monthly"},
                 {"label": "Quarterly", "value": "quarterly"},
@@ -217,6 +217,86 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3("Labor Overview", style={"textAlign": "center"}),
+                    dcc.Graph(id="labor-expenses-stacked"),
+                ],
+            ),
+        ]
+    ),
+]
+
+financial_layout = [
+    html.H1("Financial Overview & Summary", style={"textAlign": "center"}),
+    html.Hr(),
+    dbc.Accordion(
+        [
+            dbc.AccordionItem(
+                title="Cash Collection",
+                children=[
+                    dag.AgGrid(
+                        id="cashflow-collection-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    )
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Cash Payments",
+                children=[
+                    dag.AgGrid(
+                        id="cashflow-payments-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    )
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Overhead",
+                children=[
+                    dag.AgGrid(
+                        id="overhead-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    )
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Contribution Margin",
+                children=[
+                    dag.AgGrid(
+                        id="contribution-margin-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    )
                 ],
             ),
         ]

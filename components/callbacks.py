@@ -173,7 +173,7 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
     Output("labor-budget-table", "rowData"),
     Output("labor-budget-table", "columnDefs"),
     Input("budgets-data-store", "data"),
-    Input("table-view-mode", "value"),
+    Input("budgets-view-mode", "value"),
 )
 def update_budget_tables(data, view_mode):
     if data is None:
@@ -493,6 +493,38 @@ def build_materials_expense_bar(budgets_df):
     return fig
 
 
+@callback(
+    Output("labor-expenses-stacked", "figure"),
+    Input("budgets-data-store", "data"),
+)
+def build_labor_expense_bar(budgets_df):
+    if budgets_df is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df.dropna(subset=["total_direct_labor_cost"], inplace=True)
+
+    fig = px.bar(
+        budgets_df,
+        x="month",
+        y="total_direct_labor_cost",
+        color="product",
+        custom_data=["total_labor_time"],
+        barmode="stack",
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Product: %{fullData.name}<br>"
+            "Costs: €%{y:,.2f}<br>"
+            "Time: %{customdata[0]:,}<br>"
+            "<extra></extra>"
+        )
+    )
+
+    return fig
+
+
 # lazy tab loader for performacne
 @callback(
     Output("tab-content", "children"),
@@ -504,5 +536,7 @@ def render_tab(active_tab):
             return tabs.upload_layout
         case "tab-budgets":
             return tabs.budgets_layout
+        case "tab-financial":
+            return tabs.financial_layout
         case _:
             return html.Div("404")
