@@ -467,7 +467,7 @@ def build_materials_expense_bar(budgets_df):
         raise PreventUpdate
 
     budgets_df = transforms.reconstruct_df(budgets_df)
-    budgets_df.dropna(inplace=True)
+    budgets_df.dropna(subset=["expense_for_materials"], inplace=True)
     # Nans are dropped ATM, which means the last 2 months gets always dropped
     # this might change if a NaN handling policy is introduced in the budgets calculation
 
