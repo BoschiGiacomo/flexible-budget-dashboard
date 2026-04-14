@@ -227,21 +227,11 @@ def update_budget_tables(data, view_mode):
         case "monthly":
             pass
 
-    # little helper function to reduce boilerplate, decide if upgrade to global scope
-    # returns the format expected by AgGrid
-    def to_grid(cols):
-        subset = data_df[cols].round(2).reset_index(drop=True)
-        rows = subset[cols].to_dict("records")  # type: ignore
-        col_defs = [
-            {"field": c, "headerName": name}
-            for c, name in zip(
-                subset.columns, transforms.pretty_labels(list(subset.columns))
-            )
-        ]
-        return rows, col_defs
-
-    sales_rows, sales_cols = to_grid(["product", period_col, "sales_units", "revenue"])
-    prod_rows, prod_cols = to_grid(
+    sales_rows, sales_cols = transforms.to_grid(
+        data_df, ["product", period_col, "sales_units", "revenue"]
+    )
+    prod_rows, prod_cols = transforms.to_grid(
+        data_df,
         [
             "product",
             period_col,
@@ -249,9 +239,10 @@ def update_budget_tables(data, view_mode):
             "desired_end_inv",
             "beginning_inv",
             "total_production",
-        ]
+        ],
     )
-    mat_rows, mat_cols = to_grid(
+    mat_rows, mat_cols = transforms.to_grid(
+        data_df,
         [
             "product",
             period_col,
@@ -261,10 +252,10 @@ def update_budget_tables(data, view_mode):
             "beginning_materials_inventory",
             "materials_purchases",
             "expense_for_materials",
-        ]
+        ],
     )
-    lab_rows, lab_cols = to_grid(
-        ["product", period_col, "total_labor_time", "total_direct_labor_cost"]
+    lab_rows, lab_cols = transforms.to_grid(
+        data_df, ["product", period_col, "total_labor_time", "total_direct_labor_cost"]
     )
 
     return (
