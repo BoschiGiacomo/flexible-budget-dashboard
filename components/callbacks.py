@@ -1,5 +1,4 @@
 import pandas as pd
-from pandas.core.arrays import period
 import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State, callback, html
