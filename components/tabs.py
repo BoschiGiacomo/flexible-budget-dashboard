@@ -234,6 +234,18 @@ financial_layout = [
             dbc.AccordionItem(
                 title="Cash Collection",
                 children=[
+                    dbc.Col(
+                        dcc.RadioItems(
+                            id="cashflow-collection-view-mode",
+                            options=[
+                                {"label": "Monthly", "value": "monthly"},
+                                {"label": "Quarterly", "value": "quarterly"},
+                            ],
+                            value="monthly",
+                            inline=True,
+                        ),
+                        className="d-flex justify-content-center align-items-center",
+                    ),
                     dag.AgGrid(
                         id="cashflow-collection-table",
                         rowData=[],
@@ -245,7 +257,7 @@ financial_layout = [
                         },
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
-                    )
+                    ),
                 ],
             ),
             dbc.AccordionItem(

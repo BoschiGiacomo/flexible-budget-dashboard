@@ -271,6 +271,55 @@ def update_budget_tables(data, view_mode):
 
 
 @callback(
+    Output("cashflow-collection-table", "rowData"),
+    Output("cashflow-collection-table", "columnDefs"),
+    Input("cashflow-data-store", "data"),
+    Input("cashflow-collection-view-mode", "value"),
+)
+def update_cashflow_tables(data, collection_view_mode):
+    if data is None:
+        raise PreventUpdate
+
+    data_df = transforms.reconstruct_df(data)
+
+    collect_rows = None
+    collect_cols = None
+
+    match collection_view_mode:
+        case "quarterly":
+
+            data_df["quarter"] = (
+                pd.to_datetime(data_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            data_df = data_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+            collect_rows, collect_cols = transforms.to_grid(
+                data_df, ["product", "quarter", "revenue", "total_cash_collected"]
+            )
+
+        case "monthly":
+
+            collect_rows, collect_cols = transforms.to_grid(
+                data_df,
+                [
+                    "product",
+                    "month",
+                    "revenue",
+                    "collected_same_month",
+                    "collected_lag1",
+                    "collected_lag2",
+                    "total_cash_collected",
+                ],
+            )
+
+    if collect_rows is None or collect_cols is None:
+        raise PreventUpdate
+
+    return collect_rows, collect_cols
+
+
+@callback(
     Output("sales-stacked-bar-graph", "figure"),
     Input("budgets-data-store", "data"),
 )
