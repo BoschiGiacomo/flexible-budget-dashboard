@@ -165,11 +165,6 @@ def compute_payments(labor_df, payment_policies, overhead_total) -> pd.DataFrame
     return payments_df
 
 
-def compute_overhead():
-    # STILL TODO
-    return
-
-
 def compute_budgets(sales_payload, params_payload, handle_missing=False):
     data_df = transforms.reconstruct_df(sales_payload["data"])
 
@@ -256,11 +251,10 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         - cashflow_df["overhead_payment"]
     )
 
-    # TODO: From here complete the budgeting with overhead, contribution margin, expenses
-    costs_df = pd.DataFrame(
-        labor_df.groupby("month")[["expense_for_materials", "total_direct_labor_cost"]]
-        .sum()
-        .reset_index()  # type: ignore
+    labor_df["contribution_margin"] = (
+        labor_df["revenue"]
+        - labor_df["expense_for_materials"]
+        - labor_df["total_direct_labor_cost"]
     )
 
     return labor_df, cashflow_df

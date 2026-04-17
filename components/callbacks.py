@@ -278,17 +278,15 @@ def update_budget_tables(data, view_mode):
     Output("net-cashflow-table", "rowData"),
     Output("net-cashflow-table", "columnDefs"),
     Input("cashflow-data-store", "data"),
-    Input("cashflow-collection-view-mode", "value"),
-    Input("cashflow-payment-view-mode", "value"),
-    Input("net-cashflow-view-mode", "value"),
+    Input("budgets-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
 )
-def update_cashflow_tables(
-    data, collection_view_mode, payment_view_mode, net_view_mode
-):
-    if data is None:
+def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
+    if cashflow_data is None or budgets_data is None:
         raise PreventUpdate
 
-    data_df = transforms.reconstruct_df(data)
+    cashflow_df = transforms.reconstruct_df(cashflow_data)
+    budgets_df = transforms.reconstruct_df(budgets_data)
 
     collect_rows = None
     collect_cols = None
@@ -297,10 +295,10 @@ def update_cashflow_tables(
     net_cashflow_rows = None
     net_cashflow_cols = None
 
-    match collection_view_mode:
+    match cashflow_view_mode:
         case "quarterly":
 
-            collection_df = data_df.copy()
+            collection_df = cashflow_df.copy()
 
             collection_df["quarter"] = (
                 pd.to_datetime(collection_df["month"]).dt.to_period("Q").astype("str")
@@ -315,7 +313,7 @@ def update_cashflow_tables(
         case "monthly":
 
             collect_rows, collect_cols = transforms.to_grid(
-                data_df,
+                cashflow_df,
                 [
                     "product",
                     "month",
@@ -327,9 +325,9 @@ def update_cashflow_tables(
                 ],
             )
 
-    match payment_view_mode:
+    match cashflow_view_mode:
         case "quarterly":
-            payment_df = data_df.copy()
+            payment_df = cashflow_df.copy()
 
             payment_df["quarter"] = (
                 pd.to_datetime(payment_df["month"]).dt.to_period("Q").astype("str")
@@ -351,7 +349,7 @@ def update_cashflow_tables(
         case "monthly":
 
             payment_rows, payment_cols = transforms.to_grid(
-                data_df,
+                cashflow_df,
                 [
                     "product",
                     "month",
@@ -367,9 +365,9 @@ def update_cashflow_tables(
                 ],
             )
 
-    match net_view_mode:
+    match cashflow_view_mode:
         case "quarterly":
-            net_cashflow_df = data_df.copy()
+            net_cashflow_df = cashflow_df.copy()
 
             net_cashflow_df["quarter"] = (
                 pd.to_datetime(net_cashflow_df["month"]).dt.to_period("Q").astype("str")
@@ -391,7 +389,7 @@ def update_cashflow_tables(
 
         case "monthly":
             net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
-                data_df,
+                cashflow_df,
                 [
                     "product",
                     "month",
