@@ -290,10 +290,22 @@ financial_layout = [
                 ],
             ),
             dbc.AccordionItem(
-                title="Overhead",
+                title="Net Cash Flow",
                 children=[
+                    dbc.Col(
+                        dcc.RadioItems(
+                            id="net-cashflow-view-mode",
+                            options=[
+                                {"label": "Monthly", "value": "monthly"},
+                                {"label": "Quarterly", "value": "quarterly"},
+                            ],
+                            value="monthly",
+                            inline=True,
+                        ),
+                        className="d-flex justify-content-center align-items-center",
+                    ),
                     dag.AgGrid(
-                        id="overhead-table",
+                        id="net-cashflow-table",
                         rowData=[],
                         columnDefs=[],
                         defaultColDef={
@@ -303,7 +315,7 @@ financial_layout = [
                         },
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
-                    )
+                    ),
                 ],
             ),
             dbc.AccordionItem(

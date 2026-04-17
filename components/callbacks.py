@@ -275,11 +275,16 @@ def update_budget_tables(data, view_mode):
     Output("cashflow-collection-table", "columnDefs"),
     Output("cashflow-payments-table", "rowData"),
     Output("cashflow-payments-table", "columnDefs"),
+    Output("net-cashflow-table", "rowData"),
+    Output("net-cashflow-table", "columnDefs"),
     Input("cashflow-data-store", "data"),
     Input("cashflow-collection-view-mode", "value"),
     Input("cashflow-payment-view-mode", "value"),
+    Input("net-cashflow-view-mode", "value"),
 )
-def update_cashflow_tables(data, collection_view_mode, payment_view_mode):
+def update_cashflow_tables(
+    data, collection_view_mode, payment_view_mode, net_view_mode
+):
     if data is None:
         raise PreventUpdate
 
@@ -289,6 +294,8 @@ def update_cashflow_tables(data, collection_view_mode, payment_view_mode):
     collect_cols = None
     payment_rows = None
     payment_cols = None
+    net_cashflow_rows = None
+    net_cashflow_cols = None
 
     match collection_view_mode:
         case "quarterly":
@@ -337,6 +344,7 @@ def update_cashflow_tables(data, collection_view_mode, payment_view_mode):
                     "quarter",
                     "total_materials_payments",
                     "total_labor_payments",
+                    "total_var_cost_payments",
                 ],
             )
 
@@ -355,13 +363,66 @@ def update_cashflow_tables(data, collection_view_mode, payment_view_mode):
                     "labor_paid_lag1",
                     "labor_paid_lag2",
                     "total_labor_payments",
+                    "total_var_cost_payments",
                 ],
             )
 
-    if any(v is None for v in [collect_rows, collect_cols, payment_rows, payment_cols]):
+    match net_view_mode:
+        case "quarterly":
+            net_cashflow_df = data_df.copy()
+
+            net_cashflow_df["quarter"] = (
+                pd.to_datetime(net_cashflow_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            net_cashflow_df = net_cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+            net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
+                net_cashflow_df,
+                [
+                    "product",
+                    "quarter",
+                    "total_cash_collected",
+                    "total_var_cost_payments",
+                    "overhead_payment",
+                    "net_cash_flow",
+                ],
+            )
+
+        case "monthly":
+            net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
+                data_df,
+                [
+                    "product",
+                    "month",
+                    "total_cash_collected",
+                    "total_var_cost_payments",
+                    "overhead_payment",
+                    "net_cash_flow",
+                ],
+            )
+
+    if any(
+        v is None
+        for v in [
+            collect_rows,
+            collect_cols,
+            payment_rows,
+            payment_cols,
+            net_cashflow_rows,
+            net_cashflow_cols,
+        ]
+    ):
         raise PreventUpdate
 
-    return collect_rows, collect_cols, payment_rows, payment_cols
+    return (
+        collect_rows,
+        collect_cols,
+        payment_rows,
+        payment_cols,
+        net_cashflow_rows,
+        net_cashflow_cols,
+    )
 
 
 @callback(

@@ -118,7 +118,7 @@ def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
     return cashflow_df
 
 
-def compute_payments(labor_df, payment_policies) -> pd.DataFrame:
+def compute_payments(labor_df, payment_policies, overhead_total) -> pd.DataFrame:
     payments_df = labor_df[
         ["product", "month", "expense_for_materials", "total_direct_labor_cost"]
     ].copy()
@@ -148,8 +148,18 @@ def compute_payments(labor_df, payment_policies) -> pd.DataFrame:
         + payments_df["labor_paid_lag1"]
         + payments_df["labor_paid_lag2"]
     )
-    payments_df["total_payments"] = (
+    payments_df["total_var_cost_payments"] = (
         payments_df["total_materials_payments"] + payments_df["total_labor_payments"]
+    )
+
+    payments_df["overhead_payment"] = 0.0
+
+    quarter_last_months = payments_df.groupby(
+        pd.to_datetime(payments_df["month"]).dt.to_period("Q")
+    )["month"].transform("max")
+
+    payments_df.loc[payments_df["month"] == quarter_last_months, "overhead_payment"] = (
+        overhead_total
     )
 
     return payments_df
@@ -234,9 +244,17 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         params["cash_payment_policies"]["labor"],
     )
 
-    payments_df = compute_payments(labor_df, cash_payment_policies)
+    overhead_total = params["overhead"]["total"]
+
+    payments_df = compute_payments(labor_df, cash_payment_policies, overhead_total)
 
     cashflow_df = cashflow_df.merge(payments_df, on=["product", "month"], how="left")
+
+    cashflow_df["net_cash_flow"] = (
+        cashflow_df["total_cash_collected"]
+        - cashflow_df["total_var_cost_payments"]
+        - cashflow_df["overhead_payment"]
+    )
 
     # TODO: From here complete the budgeting with overhead, contribution margin, expenses
     costs_df = pd.DataFrame(
