@@ -277,6 +277,8 @@ def update_budget_tables(data, view_mode):
     Output("cashflow-payments-table", "columnDefs"),
     Output("net-cashflow-table", "rowData"),
     Output("net-cashflow-table", "columnDefs"),
+    Output("contribution-margin-table", "rowData"),
+    Output("contribution-margin-table", "columnDefs"),
     Input("cashflow-data-store", "data"),
     Input("budgets-data-store", "data"),
     Input("cashflow-view-mode", "value"),
@@ -294,20 +296,61 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
     payment_cols = None
     net_cashflow_rows = None
     net_cashflow_cols = None
+    contribution_rows = None
+    contribution_cols = None
 
     match cashflow_view_mode:
         case "quarterly":
 
-            collection_df = cashflow_df.copy()
-
-            collection_df["quarter"] = (
-                pd.to_datetime(collection_df["month"]).dt.to_period("Q").astype("str")
+            cashflow_df["quarter"] = (
+                pd.to_datetime(cashflow_df["month"]).dt.to_period("Q").astype("str")
             )
 
-            collection_df = collection_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+            cashflow_df = cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+            budgets_df["quarter"] = (
+                    pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            budgets_df = budgets_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
 
             collect_rows, collect_cols = transforms.to_grid(
-                collection_df, ["product", "quarter", "revenue", "total_cash_collected"]
+                cashflow_df, ["product", "quarter", "revenue", "total_cash_collected"]
+            )
+
+            payment_rows, payment_cols = transforms.to_grid(
+                cashflow_df,
+                [
+                    "product",
+                    "quarter",
+                    "total_materials_payments",
+                    "total_labor_payments",
+                    "total_var_cost_payments",
+                ],
+            )
+
+            net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
+                cashflow_df,
+                [
+                    "product",
+                    "quarter",
+                    "total_cash_collected",
+                    "total_var_cost_payments",
+                    "overhead_payment",
+                    "net_cash_flow",
+                ],
+            )
+
+            contribution_rows, contribution_cols = transforms.to_grid(
+                budgets_df,
+                [
+                    "product",
+                    "quarter",
+                    "revenue",
+                    "expense_for_materials",
+                    "total_direct_labor_cost",
+                    "contribution_margin",
+                ],
             )
 
         case "monthly":
@@ -324,29 +367,6 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
                     "total_cash_collected",
                 ],
             )
-
-    match cashflow_view_mode:
-        case "quarterly":
-            payment_df = cashflow_df.copy()
-
-            payment_df["quarter"] = (
-                pd.to_datetime(payment_df["month"]).dt.to_period("Q").astype("str")
-            )
-
-            payment_df = payment_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
-
-            payment_rows, payment_cols = transforms.to_grid(
-                payment_df,
-                [
-                    "product",
-                    "quarter",
-                    "total_materials_payments",
-                    "total_labor_payments",
-                    "total_var_cost_payments",
-                ],
-            )
-
-        case "monthly":
 
             payment_rows, payment_cols = transforms.to_grid(
                 cashflow_df,
@@ -365,29 +385,6 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
                 ],
             )
 
-    match cashflow_view_mode:
-        case "quarterly":
-            net_cashflow_df = cashflow_df.copy()
-
-            net_cashflow_df["quarter"] = (
-                pd.to_datetime(net_cashflow_df["month"]).dt.to_period("Q").astype("str")
-            )
-
-            net_cashflow_df = net_cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
-
-            net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
-                net_cashflow_df,
-                [
-                    "product",
-                    "quarter",
-                    "total_cash_collected",
-                    "total_var_cost_payments",
-                    "overhead_payment",
-                    "net_cash_flow",
-                ],
-            )
-
-        case "monthly":
             net_cashflow_rows, net_cashflow_cols = transforms.to_grid(
                 cashflow_df,
                 [
@@ -400,6 +397,18 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
                 ],
             )
 
+            contribution_rows, contribution_cols = transforms.to_grid(
+                budgets_df,
+                [
+                    "product",
+                    "month",
+                    "revenue",
+                    "expense_for_materials",
+                    "total_direct_labor_cost",
+                    "contribution_margin",
+                ],
+            )
+
     if any(
         v is None
         for v in [
@@ -409,6 +418,8 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
             payment_cols,
             net_cashflow_rows,
             net_cashflow_cols,
+            contribution_rows,
+            contribution_cols,
         ]
     ):
         raise PreventUpdate
@@ -420,6 +431,8 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
         payment_cols,
         net_cashflow_rows,
         net_cashflow_cols,
+        contribution_rows,
+        contribution_cols,
     )
 
 
