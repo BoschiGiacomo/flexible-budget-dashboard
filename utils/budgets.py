@@ -118,6 +118,43 @@ def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
     return cashflow_df
 
 
+def compute_payments(labor_df, payment_policies) -> pd.DataFrame:
+    payments_df = labor_df[
+        ["product", "month", "expense_for_materials", "total_direct_labor_cost"]
+    ].copy()
+
+    for idx, (mat_policy, labor_policy) in enumerate(payment_policies):
+
+        mat_col_name = f"materials_paid_lag{idx}"
+        labor_col_name = f"labor_paid_lag{idx}"
+
+        payments_df[mat_col_name] = (
+            payments_df.groupby("product")["expense_for_materials"].shift(idx)
+            * mat_policy
+        ).round(2)
+
+        payments_df[labor_col_name] = (
+            payments_df.groupby("product")["total_direct_labor_cost"].shift(idx)
+            * labor_policy
+        ).round(2)
+
+    payments_df["total_materials_payments"] = (
+        payments_df["materials_paid_lag0"]
+        + payments_df["materials_paid_lag1"]
+        + payments_df["materials_paid_lag2"]
+    )
+    payments_df["total_labor_payments"] = (
+        payments_df["labor_paid_lag0"]
+        + payments_df["labor_paid_lag1"]
+        + payments_df["labor_paid_lag2"]
+    )
+    payments_df["total_payments"] = (
+        payments_df["total_materials_payments"] + payments_df["total_labor_payments"]
+    )
+
+    return payments_df
+
+
 def compute_overhead():
     # STILL TODO
     return
@@ -192,13 +229,20 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
 
     cashflow_df = compute_cashflow(sales_df, cash_collection_df)
 
+    cash_payment_policies = zip(
+        params["cash_payment_policies"]["raw_materials"],
+        params["cash_payment_policies"]["labor"],
+    )
+
+    payments_df = compute_payments(labor_df, cash_payment_policies)
+
+    cashflow_df = cashflow_df.merge(payments_df, on=["product", "month"], how="left")
+
     # TODO: From here complete the budgeting with overhead, contribution margin, expenses
     costs_df = pd.DataFrame(
         labor_df.groupby("month")[["expense_for_materials", "total_direct_labor_cost"]]
         .sum()
         .reset_index()  # type: ignore
     )
-
-    payment_policies = params["cash_payment_policies"]
 
     return labor_df, cashflow_df
