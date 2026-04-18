@@ -118,8 +118,8 @@ def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
     return cashflow_df
 
 
-def compute_payments(labor_df, payment_policies, overhead_total) -> pd.DataFrame:
-    payments_df = labor_df[
+def compute_payments(budgets_df, payment_policies, overhead_total) -> pd.DataFrame:
+    payments_df = budgets_df[
         ["product", "month", "expense_for_materials", "total_direct_labor_cost"]
     ].copy()
 
@@ -218,7 +218,7 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         ]
     )
 
-    labor_df = compute_labor_budget(materials_df, direct_labor_df)
+    budgets_df = compute_labor_budget(materials_df, direct_labor_df)
 
     cash_collection_df = pd.DataFrame(
         [
@@ -241,7 +241,7 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
 
     overhead_total = params["overhead"]["total"]
 
-    payments_df = compute_payments(labor_df, cash_payment_policies, overhead_total)
+    payments_df = compute_payments(budgets_df, cash_payment_policies, overhead_total)
 
     cashflow_df = cashflow_df.merge(payments_df, on=["product", "month"], how="left")
 
@@ -251,10 +251,10 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         - cashflow_df["overhead_payment"]
     )
 
-    labor_df["contribution_margin"] = (
-        labor_df["revenue"]
-        - labor_df["expense_for_materials"]
-        - labor_df["total_direct_labor_cost"]
+    budgets_df["contribution_margin"] = (
+        budgets_df["revenue"]
+        - budgets_df["expense_for_materials"]
+        - budgets_df["total_direct_labor_cost"]
     )
 
-    return labor_df, cashflow_df
+    return budgets_df, cashflow_df
