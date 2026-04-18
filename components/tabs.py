@@ -258,6 +258,19 @@ financial_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3(
+                        "Cash collection vs Revenue Chart",
+                        style={"textAlign": "center"},
+                    ),
+                    html.Hr(),
+                    dcc.Dropdown(
+                        id="cashvrevenue-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph("cash-revenue-line-chart"),
                 ],
             ),
             dbc.AccordionItem(

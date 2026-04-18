@@ -309,7 +309,7 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
             cashflow_df = cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
 
             budgets_df["quarter"] = (
-                    pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+                pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
             )
 
             budgets_df = budgets_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
@@ -523,7 +523,7 @@ def populate_quarter_dropdown(budgets_df):
     Input("budgets-data-store", "data"),
     State("params-data-store", "data"),
 )
-def populate_product_dropdown(budgets_df, params):
+def populate_budgets_product_dropdown(budgets_df, params):
     if budgets_df is None or params is None:
         raise PreventUpdate
 
@@ -536,6 +536,26 @@ def populate_product_dropdown(budgets_df, params):
 
     return options, products[0]
 
+@callback(
+    Output("cashvrevenue-product-dropdown", "options"),
+    Output("cashvrevenue-product-dropdown", "value"),
+    Input("cashflow-data-store", "data"),
+    State("params-data-store", "data"),
+)
+def populate_cashflow_product_dropdown(cashflow_df, params):
+    if cashflow_df is None or params is None:
+        raise PreventUpdate
+
+    cashflow_df = transforms.reconstruct_df(cashflow_df)
+    products = sorted(cashflow_df["product"].unique())
+    options = [
+        {"label": params["data"]["products"][code]["name"], "value": code}
+        for code in products
+    ]
+
+    options_with_all = options + [{"label": "All Products", "value": "all"}]
+
+    return options_with_all, "all"
 
 @callback(
     Output("inventory-waterfall-chart", "figure"),
@@ -677,6 +697,52 @@ def build_labor_expense_bar(budgets_df):
             "<extra></extra>"
         )
     )
+
+    return fig
+
+
+# cash vs revenue line chart in financial tab
+@callback(
+    Output("cash-revenue-line-chart", "figure"),
+    Input("cashflow-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("cashvrevenue-product-dropdown", "value"),
+)
+def update_cash_revenue_chart(cashflow_data, view_mode, products):
+    if cashflow_data is None:
+        raise PreventUpdate
+
+    cashflow_df = transforms.reconstruct_df(cashflow_data)
+
+    time_period = "month"
+
+    match view_mode:
+        case "quarterly":
+            time_period = "quarter"
+
+            cashflow_df["quarter"] = (
+                pd.to_datetime(cashflow_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            cashflow_df = cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+        case "monthly":
+            pass
+
+    fig = None
+
+    match products:
+        case "all":
+            agg_df = cashflow_df.groupby(time_period).sum(numeric_only=True).reset_index()  # type: ignore
+
+            fig = px.line(agg_df, x=time_period, y=["revenue", "total_cash_collected"])
+
+        case _:
+            fig = px.line(
+                cashflow_df[cashflow_df["product"] == products],
+                x=time_period,
+                y=["revenue", "total_cash_collected"],
+            )
 
     return fig
 
