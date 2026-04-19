@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from dash import Input, Output, State, callback, html
 from dash.exceptions import PreventUpdate
 
@@ -536,9 +537,12 @@ def populate_budgets_product_dropdown(budgets_df, params):
 
     return options, products[0]
 
+
 @callback(
     Output("cashvrevenue-product-dropdown", "options"),
     Output("cashvrevenue-product-dropdown", "value"),
+    Output("zerobar-waterfall-product-dropdown", "options"),
+    Output("zerobar-waterfall-product-dropdown", "value"),
     Input("cashflow-data-store", "data"),
     State("params-data-store", "data"),
 )
@@ -555,7 +559,8 @@ def populate_cashflow_product_dropdown(cashflow_df, params):
 
     options_with_all = options + [{"label": "All Products", "value": "all"}]
 
-    return options_with_all, "all"
+    return options_with_all, "all", options_with_all, "all"
+
 
 @callback(
     Output("inventory-waterfall-chart", "figure"),
@@ -708,7 +713,7 @@ def build_labor_expense_bar(budgets_df):
     Input("cashflow-view-mode", "value"),
     Input("cashvrevenue-product-dropdown", "value"),
 )
-def update_cash_revenue_chart(cashflow_data, view_mode, products):
+def build_cash_revenue_chart(cashflow_data, view_mode, products):
     if cashflow_data is None:
         raise PreventUpdate
 
@@ -743,6 +748,123 @@ def update_cash_revenue_chart(cashflow_data, view_mode, products):
                 x=time_period,
                 y=["revenue", "total_cash_collected"],
             )
+
+    return fig
+
+
+@callback(
+    Output("zerobar-waterfall-cashflow-chart", "figure"),
+    Input("cashflow-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("zerobar-waterfall-product-dropdown", "value"),
+)
+def build_net_cashflow_charts(cashflow_data, view_mode, product):
+    if cashflow_data is None:
+        raise PreventUpdate
+
+    cashflow_df = transforms.reconstruct_df(cashflow_data)
+
+    cashflow_df = cashflow_df.dropna(
+        subset=["total_cash_collected", "total_var_cost_payments", "net_cash_flow"]
+    )
+
+    time_period = "month"
+
+    match view_mode:
+        case "quarterly":
+            time_period = "quarter"
+
+            cashflow_df["quarter"] = (
+                pd.to_datetime(cashflow_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            cashflow_df = cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+        case "monthly":
+            pass
+
+    match product:
+        case "all":
+            agg_df = cashflow_df.groupby(time_period).sum(numeric_only=True).reset_index()  # type: ignore
+
+            x_outer, x_inner, measures, values = [], [], [], []
+
+            for _, row in agg_df.iterrows():
+                period = row[time_period]
+                x_outer += [period, period, period, period]
+                x_inner += ["+", "-Var", "-OH", "="]
+                measures += ["absolute", "relative", "relative", "absolute"]
+                values += [
+                    row["total_cash_collected"],
+                    -row["total_var_cost_payments"],
+                    -row["overhead_payment"],
+                    row["net_cash_flow"],
+                ]
+
+            bar_trace = go.Bar(
+                x=agg_df[time_period],
+                y=agg_df["net_cash_flow"],
+                marker_color=[
+                    "green" if v >= 0 else "red" for v in agg_df["net_cash_flow"]
+                ],
+            )
+
+        case _:
+            subset = cashflow_df[cashflow_df["product"] == product]
+
+            subset = subset.sort_values(time_period).reset_index(drop=True)  # type: ignore
+
+            x_outer, x_inner, measures, values = [], [], [], []
+
+            for _, row in subset.iterrows():
+                period = row[time_period]
+                x_outer += [period, period, period, period]
+                x_inner += ["+", "-Var", "-OH", "="]
+                measures += ["absolute", "relative", "relative", "absolute"]
+                values += [
+                    row["total_cash_collected"],
+                    -row["total_var_cost_payments"],
+                    -row["overhead_payment"],
+                    row["net_cash_flow"],
+                ]
+
+            bar_trace = go.Bar(
+                x=subset[time_period],
+                y=subset["net_cash_flow"],
+                marker_color=[
+                    "green" if v >= 0 else "red" for v in subset["net_cash_flow"]
+                ],
+            )
+
+    # TODO: find a way to colour differently the cash collected and net cashflow columns
+    # TODO if time remains, refactor waterfall with flat x axis (no inner/outer axis) so that
+    # the shared axis works and a navigation map can be added to the plot cleanly
+    waterfall_trace = go.Waterfall(
+        x=[x_outer, x_inner],
+        measure=measures,
+        y=values,
+        connector={"line": {"color": "black", "width": 1}},
+    )
+
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        shared_xaxes=True,
+        subplot_titles=("Net Cashflow Buildup", "Net Cashflow Bar"),
+    )
+
+    fig.add_trace(waterfall_trace, row=1, col=1)
+    fig.add_trace(bar_trace, row=1, col=2)
+    fig.add_shape(
+        type="line",
+        x0=0,
+        x1=1,
+        xref="x2 domain",
+        y0=0,
+        y1=0,
+        yref="y2",
+        line={"color": "black", "width": 1},
+    )
 
     return fig
 

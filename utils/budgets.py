@@ -160,6 +160,10 @@ def compute_payments(budgets_df, payment_policies, overhead_total) -> pd.DataFra
         pd.to_datetime(payments_df["month"]).dt.to_period("Q")
     )["month"].transform("max")
 
+    # Overhead is divided by the number of products just for the sake of simplicity and
+    # visualization, the overhead is not per product, but this is the only way i found
+    # to make it work.
+    # it just works, i probably will come up with something less hacky later
     payments_df.loc[payments_df["month"] == quarter_last_months, "overhead_payment"] = (
         overhead_total / n_products
     )

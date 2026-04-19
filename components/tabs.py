@@ -305,6 +305,15 @@ financial_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3("Net Cashflow Dynamic", style={"textAlign": "center"}),
+                    dcc.Dropdown(
+                        id="zerobar-waterfall-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="zerobar-waterfall-cashflow-chart"),
                 ],
             ),
             dbc.AccordionItem(
