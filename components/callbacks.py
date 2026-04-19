@@ -543,6 +543,8 @@ def populate_budgets_product_dropdown(budgets_df, params):
     Output("cashvrevenue-product-dropdown", "value"),
     Output("zerobar-waterfall-product-dropdown", "options"),
     Output("zerobar-waterfall-product-dropdown", "value"),
+    Output("varpayments-product-dropdown", "options"),
+    Output("varpayments-product-dropdown", "value"),
     Input("cashflow-data-store", "data"),
     State("params-data-store", "data"),
 )
@@ -559,7 +561,7 @@ def populate_cashflow_product_dropdown(cashflow_df, params):
 
     options_with_all = options + [{"label": "All Products", "value": "all"}]
 
-    return options_with_all, "all", options_with_all, "all"
+    return options_with_all, "all", options_with_all, "all", options_with_all, "all"
 
 
 @callback(
@@ -752,6 +754,54 @@ def build_cash_revenue_chart(cashflow_data, view_mode, products):
     return fig
 
 
+# graph in the cash payments accordion, area chart of material payments + labor payments =  total variable payments
+@callback(
+    Output("variable-costs-area-chart", "figure"),
+    Input("cashflow-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("varpayments-product-dropdown", "value"),
+)
+def build_payments_area_chart(cashflow_data, view_mode, product):
+    if cashflow_data is None:
+        raise PreventUpdate
+
+    cashflow_df = transforms.reconstruct_df(cashflow_data)
+
+    cashflow_df = cashflow_df.dropna(
+        subset=["total_materials_payments", "total_labor_payments"]
+    )
+
+    time_period = "month"
+
+    match view_mode:
+        case "quarterly":
+            time_period = "quarter"
+
+            cashflow_df["quarter"] = (
+                pd.to_datetime(cashflow_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            cashflow_df = cashflow_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+        case "monthly":
+            pass
+
+    match product:
+        case "all":
+            plot_df = cashflow_df.groupby(time_period).sum(numeric_only=True).reset_index()  # type: ignore
+        case _:
+            plot_df = cashflow_df[cashflow_df["product"] == product].sort_values(time_period).reset_index(drop=True)  # type: ignore
+
+    fig = px.area(
+        plot_df,
+        x=time_period,
+        y=["total_materials_payments", "total_labor_payments"],
+    )
+
+    return fig
+
+
+# populate the first subplot of the net cashflow area. bar chart with zero line and waterfall for per product net cashflow composition
 @callback(
     Output("zerobar-waterfall-cashflow-chart", "figure"),
     Input("cashflow-data-store", "data"),

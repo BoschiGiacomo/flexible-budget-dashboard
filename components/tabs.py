@@ -288,6 +288,19 @@ financial_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3(
+                        "Variable costs payments composition",
+                        style={"textAlign": "center"},
+                    ),
+                    html.Hr(),
+                    dcc.Dropdown(
+                        id="varpayments-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="variable-costs-area-chart"),
                 ],
             ),
             dbc.AccordionItem(
