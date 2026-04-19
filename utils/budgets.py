@@ -154,12 +154,14 @@ def compute_payments(budgets_df, payment_policies, overhead_total) -> pd.DataFra
 
     payments_df["overhead_payment"] = 0.0
 
+    n_products = payments_df["product"].nunique()
+
     quarter_last_months = payments_df.groupby(
         pd.to_datetime(payments_df["month"]).dt.to_period("Q")
     )["month"].transform("max")
 
     payments_df.loc[payments_df["month"] == quarter_last_months, "overhead_payment"] = (
-        overhead_total
+        overhead_total / n_products
     )
 
     return payments_df
