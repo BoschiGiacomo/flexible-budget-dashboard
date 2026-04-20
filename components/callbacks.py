@@ -545,6 +545,8 @@ def populate_budgets_product_dropdown(budgets_df, params):
     Output("zerobar-waterfall-product-dropdown", "value"),
     Output("varpayments-product-dropdown", "options"),
     Output("varpayments-product-dropdown", "value"),
+    Output("contrib-margin-product-dropdown", "options"),
+    Output("contrib-margin-product-dropdown", "value"),
     Input("cashflow-data-store", "data"),
     State("params-data-store", "data"),
 )
@@ -561,7 +563,16 @@ def populate_cashflow_product_dropdown(cashflow_df, params):
 
     options_with_all = options + [{"label": "All Products", "value": "all"}]
 
-    return options_with_all, "all", options_with_all, "all", options_with_all, "all"
+    return (
+        options_with_all,
+        "all",
+        options_with_all,
+        "all",
+        options_with_all,
+        "all",
+        options_with_all,
+        "all",
+    )
 
 
 @callback(
@@ -915,6 +926,95 @@ def build_net_cashflow_charts(cashflow_data, view_mode, product):
         yref="y2",
         line={"color": "black", "width": 1},
     )
+
+    return fig
+
+
+@callback(
+    Output("contribution-margin-subplot", "figure"),
+    Input("budgets-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("contrib-margin-product-dropdown", "value"),
+)
+def build_cm_subplot(budget_data, view_mode, product):
+    if budget_data is None:
+        raise PreventUpdate
+
+    budget_df = transforms.reconstruct_df(budget_data)
+
+    time_period = "month"
+
+    budget_df = budget_df.dropna(subset=["revenue", "contribution_margin"])
+
+    match view_mode:
+        case "quarterly":
+            time_period = "quarter"
+
+            budget_df["quarter"] = (
+                pd.to_datetime(budget_df["month"]).dt.to_period("Q").astype("str")
+            )
+
+            budget_df = budget_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
+        case "monthly":
+            pass
+
+    budget_df["cm_ratio"] = budget_df["contribution_margin"] / budget_df["revenue"]
+
+    match product:
+        case "all":
+            products = budget_df["product"].unique()
+
+            bar_traces = [
+                go.Bar(
+                    name=p,
+                    x=budget_df.loc[budget_df["product"] == p, time_period],
+                    y=budget_df.loc[budget_df["product"] == p, "contribution_margin"],
+                )
+                for p in products
+            ]
+
+            line_traces = [
+                go.Scatter(
+                    name=p,
+                    x=budget_df.loc[budget_df["product"] == p, time_period],
+                    y=budget_df.loc[budget_df["product"] == p, "cm_ratio"],
+                    mode="lines+markers",
+                )
+                for p in products
+            ]
+        case _:
+            bar_traces = [
+                go.Bar(
+                    x=budget_df.loc[budget_df["product"] == product, time_period],
+                    y=budget_df.loc[
+                        budget_df["product"] == product, "contribution_margin"
+                    ],
+                )
+            ]
+
+            line_traces = [
+                go.Scatter(
+                    x=budget_df.loc[budget_df["product"] == product, time_period],
+                    y=budget_df.loc[budget_df["product"] == product, "cm_ratio"],
+                )
+            ]
+
+    fig = make_subplots(rows=1, cols=2, shared_xaxes=True) #TODO: sync not working, figure it out later
+
+    for trace in bar_traces:
+        fig.add_trace(trace, row=1, col=1)
+    for trace in line_traces:
+        fig.add_trace(trace, row=1, col=2)
+
+
+    # The line plot is currently useless in showing efficiency, as scenario analysis
+    # currently won't support analysis starting from a period but will change every 
+    # value for all periods. The graph becomes more useful when efficiency can change
+    # in different periods, write in report
+
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(rangeslider_visible=True)
 
     return fig
 
