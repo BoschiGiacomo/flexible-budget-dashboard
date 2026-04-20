@@ -100,3 +100,13 @@ def parse_contents(contents, filename):
 
 def pretty_labels(labels: list) -> list:
     return [label.replace("_", " ").title() for label in labels]
+
+
+def to_grid(data_df: pd.DataFrame, cols: list):
+    subset = data_df[cols].round(2).reset_index(drop=True)
+    rows = subset[cols].to_dict("records")  # type: ignore
+    col_defs = [
+        {"field": c, "headerName": name}
+        for c, name in zip(subset.columns, pretty_labels(list(subset.columns)))
+    ]
+    return rows, col_defs

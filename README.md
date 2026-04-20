@@ -46,6 +46,15 @@ Install dependencies
 pip install -r requirements.txt
 ```
 
+Run the application:
+
+```bash
+# while inside the root folder and with .venv active
+python dashboard.py # or python3
+```
+
+and click the link that appears in the command window to visualize the web dashboard
+
 ## How to commit to the project (Git Workflow)
 
 **Why don't we push directly to `main`?**

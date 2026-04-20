@@ -87,6 +87,19 @@ upload_layout = [
 budgets_layout = [
     html.H1("Budgets view", style={"textAlign": "center"}),
     html.Hr(),
+    dbc.Col(
+        dcc.RadioItems(
+            id="budgets-view-mode",
+            options=[
+                {"label": "Monthly", "value": "monthly"},
+                {"label": "Quarterly", "value": "quarterly"},
+            ],
+            value="monthly",
+            inline=True,
+        ),
+        className="d-flex justify-content-center align-items-center",
+    ),
+    html.Hr(),
     dbc.Accordion(
         [
             dbc.AccordionItem(
@@ -125,6 +138,48 @@ budgets_layout = [
                     ),
                     html.H3("Inventory Movements", style={"textAlign": "center"}),
                     dcc.Graph(id="inventory-movement-graph"),
+                    html.Hr(),
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                [
+                                    dcc.Dropdown(
+                                        id="waterfall-quarter-dropdown",
+                                        options=[],
+                                        value=None,
+                                        multi=True,
+                                    ),
+                                ],
+                                md=5,
+                            ),
+                            dbc.Col(
+                                [
+                                    dcc.Dropdown(
+                                        id="waterfall-product-dropdown",
+                                        options=[],
+                                        value=None,
+                                    ),
+                                ],
+                                md=5,
+                            ),
+                            dbc.Col(
+                                [
+                                    dcc.RadioItems(
+                                        id="waterfall-mode",
+                                        options=[
+                                            {"label": "Build-up", "value": "buildup"},
+                                            {"label": "Delta", "value": "delta"},
+                                        ],
+                                        value="buildup",
+                                        inline=True,
+                                    ),
+                                ],
+                                md=2,
+                            ),
+                        ]
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="inventory-waterfall-chart"),
                 ],
             ),
             dbc.AccordionItem(
@@ -142,6 +197,9 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3("Materials Overview", style={"textAlign": "center"}),
+                    dcc.Graph(id="materials-expenses-stacked"),
                 ],
             ),
             dbc.AccordionItem(
@@ -159,6 +217,150 @@ budgets_layout = [
                         columnSize="responsiveSizeToFit",
                         style={"height": "300px", "width": "100%"},
                     ),
+                    html.Hr(),
+                    html.H3("Labor Overview", style={"textAlign": "center"}),
+                    dcc.Graph(id="labor-expenses-stacked"),
+                ],
+            ),
+        ]
+    ),
+]
+
+financial_layout = [
+    html.H1("Financial Overview & Summary", style={"textAlign": "center"}),
+    html.Hr(),
+    dbc.Col(
+        dcc.RadioItems(
+            id="cashflow-view-mode",
+            options=[
+                {"label": "Monthly", "value": "monthly"},
+                {"label": "Quarterly", "value": "quarterly"},
+            ],
+            value="monthly",
+            inline=True,
+        ),
+        className="d-flex justify-content-center align-items-center",
+    ),
+    dbc.Accordion(
+        [
+            dbc.AccordionItem(
+                title="Cash Collection",
+                children=[
+                    dag.AgGrid(
+                        id="cashflow-collection-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    ),
+                    html.Hr(),
+                    html.H3(
+                        "Cash collection vs Revenue Chart",
+                        style={"textAlign": "center"},
+                    ),
+                    html.Hr(),
+                    dcc.Dropdown(
+                        id="cashvrevenue-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph("cash-revenue-line-chart"),
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Cash Payments",
+                children=[
+                    dag.AgGrid(
+                        id="cashflow-payments-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    ),
+                    html.Hr(),
+                    html.H3(
+                        "Variable costs payments composition",
+                        style={"textAlign": "center"},
+                    ),
+                    html.Hr(),
+                    dcc.Dropdown(
+                        id="varpayments-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="variable-costs-area-chart"),
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Net Cash Flow",
+                children=[
+                    dag.AgGrid(
+                        id="net-cashflow-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    ),
+                    html.Hr(),
+                    html.H3("Net Cashflow Dynamic", style={"textAlign": "center"}),
+                    dcc.Dropdown(
+                        id="zerobar-waterfall-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="zerobar-waterfall-cashflow-chart"),
+                ],
+            ),
+            dbc.AccordionItem(
+                title="Contribution Margin",
+                children=[
+                    dag.AgGrid(
+                        id="contribution-margin-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "300px", "width": "100%"},
+                    ),
+                    html.Hr(),
+                    html.H3(
+                        "Contribution Margin and contribution margin on revenue",
+                        style={"textAlign": "center"},
+                    ),
+                    dcc.Dropdown(
+                        id="contrib-margin-product-dropdown",
+                        options=[],
+                        value=None,
+                    ),
+                    html.Hr(),
+                    dcc.Graph(id="contribution-margin-subplot"),
+                    html.Hr(),
+                    html.H3(
+                        "Contribution Margin Composition", style={"textAlign", "center"}
+                    ),
+                    dcc.Graph(id="contribution-margin-waterfall"),
                 ],
             ),
         ]

@@ -24,6 +24,7 @@ app.layout = dbc.Container(
             children=[
                 dbc.Tab(label="Upload & Preview", tab_id="tab-upload"),
                 dbc.Tab(label="Budgets", tab_id="tab-budgets"),
+                dbc.Tab(label="Financial", tab_id="tab-financial"),
             ],
         ),
         html.Div(id="tab-content"),
