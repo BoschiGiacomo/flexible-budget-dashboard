@@ -1,3 +1,4 @@
+from operator import call
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1018,6 +1019,69 @@ def build_cm_subplot(budget_data, view_mode, product):
 
     return fig
 
+@callback(
+        Output("contribution-margin-waterfall", "figure"),
+        Input("budgets-data-store", "data"),
+        Input("cashflow-view-mode", "value"),
+        Input("contrib-margin-product-dropdown", "value"),
+        )
+def build_cm_waterfall(budget_data, view_mode, product):
+    if budget_data is None:
+        raise PreventUpdate
+
+    budget_df = transforms.reconstruct_df(budget_data)
+
+    budget_df = budget_df.dropna(
+        subset=["revenue", "expense_for_materials", "total_direct_labor_cost", "contribution_margin"]
+    )
+
+    time_period = "month"
+
+    match view_mode:
+        case "quarterly":
+            time_period = "quarter"
+            budget_df["quarter"] = (
+                pd.to_datetime(budget_df["month"]).dt.to_period("Q").astype("str")
+            )
+            budget_df = budget_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+        case "monthly":
+            pass
+
+    match product:
+        case "all":
+            plot_df = budget_df.groupby(time_period).sum(numeric_only=True).reset_index()  # type: ignore
+        case _:
+            plot_df = (
+                budget_df[budget_df["product"] == product]
+                .sort_values(time_period) #type:ignore
+                .reset_index(drop=True)
+            )
+
+    x_outer, x_inner, measures, values = [], [], [], []
+
+    for _, row in plot_df.iterrows():
+        period = row[time_period]
+        x_outer += [period, period, period, period]
+        x_inner += ["Revenue", "- Mat", "- HR", "= CM"]
+        measures += ["absolute", "relative", "relative", "total"]
+        values += [
+            row["revenue"],
+            -row["expense_for_materials"],
+            -row["total_direct_labor_cost"],
+            0,
+        ]
+
+    fig = go.Figure(
+        go.Waterfall(
+            orientation="v",
+            measure=measures,
+            x=[x_outer, x_inner],
+            y=values,
+            connector={"line": {"color": "black", "width": 1}},
+        )
+    )
+
+    return fig
 
 # lazy tab loader for performacne
 @callback(

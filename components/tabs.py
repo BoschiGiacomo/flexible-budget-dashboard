@@ -356,6 +356,11 @@ financial_layout = [
                     ),
                     html.Hr(),
                     dcc.Graph(id="contribution-margin-subplot"),
+                    html.Hr(),
+                    html.H3(
+                        "Contribution Margin Composition", style={"textAlign", "center"}
+                    ),
+                    dcc.Graph(id="contribution-margin-waterfall"),
                 ],
             ),
         ]
