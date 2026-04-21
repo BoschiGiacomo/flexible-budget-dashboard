@@ -733,6 +733,8 @@ def build_cash_revenue_chart(cashflow_data, view_mode, products):
 
     cashflow_df = transforms.reconstruct_df(cashflow_data)
 
+    # TODO: decide if drop nans before computation, and add range slider
+
     time_period = "month"
 
     match view_mode:
