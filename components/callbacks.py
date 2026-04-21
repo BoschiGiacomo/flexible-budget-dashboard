@@ -1,4 +1,3 @@
-from operator import call
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1003,16 +1002,17 @@ def build_cm_subplot(budget_data, view_mode, product):
                 )
             ]
 
-    fig = make_subplots(rows=1, cols=2, shared_xaxes=True) #TODO: sync not working, figure it out later
+    fig = make_subplots(
+        rows=1, cols=2, shared_xaxes=True
+    )  # TODO: sync not working, figure it out later
 
     for trace in bar_traces:
         fig.add_trace(trace, row=1, col=1)
     for trace in line_traces:
         fig.add_trace(trace, row=1, col=2)
 
-
     # The line plot is currently useless in showing efficiency, as scenario analysis
-    # currently won't support analysis starting from a period but will change every 
+    # currently won't support analysis starting from a period but will change every
     # value for all periods. The graph becomes more useful when efficiency can change
     # in different periods, write in report
 
@@ -1021,12 +1021,13 @@ def build_cm_subplot(budget_data, view_mode, product):
 
     return fig
 
+
 @callback(
-        Output("contribution-margin-waterfall", "figure"),
-        Input("budgets-data-store", "data"),
-        Input("cashflow-view-mode", "value"),
-        Input("contrib-margin-product-dropdown", "value"),
-        )
+    Output("contribution-margin-waterfall", "figure"),
+    Input("budgets-data-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("contrib-margin-product-dropdown", "value"),
+)
 def build_cm_waterfall(budget_data, view_mode, product):
     if budget_data is None:
         raise PreventUpdate
@@ -1034,7 +1035,12 @@ def build_cm_waterfall(budget_data, view_mode, product):
     budget_df = transforms.reconstruct_df(budget_data)
 
     budget_df = budget_df.dropna(
-        subset=["revenue", "expense_for_materials", "total_direct_labor_cost", "contribution_margin"]
+        subset=[
+            "revenue",
+            "expense_for_materials",
+            "total_direct_labor_cost",
+            "contribution_margin",
+        ]
     )
 
     time_period = "month"
@@ -1055,7 +1061,7 @@ def build_cm_waterfall(budget_data, view_mode, product):
         case _:
             plot_df = (
                 budget_df[budget_df["product"] == product]
-                .sort_values(time_period) #type:ignore
+                .sort_values(time_period)  # type: ignore
                 .reset_index(drop=True)
             )
 
@@ -1085,6 +1091,19 @@ def build_cm_waterfall(budget_data, view_mode, product):
 
     return fig
 
+
+@callback(
+    Output("scenario-input", "children"),
+    Input("tabs", "active_tab"),
+    State("scenario-params-store", "data"),
+)
+def populate_scenario_tab(active_tab, scenario_params):
+    if active_tab != "tab-scenario" or scenario_params is None:
+        raise PreventUpdate
+
+    return tabs.build_scenario_layout(scenario_params["data"])
+
+
 # lazy tab loader for performacne
 @callback(
     Output("tab-content", "children"),
@@ -1098,5 +1117,7 @@ def render_tab(active_tab):
             return tabs.budgets_layout
         case "tab-financial":
             return tabs.financial_layout
+        case "tab-scenario":
+            return tabs.scenario_layout
         case _:
             return html.Div("404")

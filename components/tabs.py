@@ -2,6 +2,11 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 from dash import dcc, html
 
+
+def build_scenario_layout(params: dict) -> list:
+    return []
+
+
 upload_style = {
     "width": "100%",
     "height": "60px",
@@ -365,4 +370,38 @@ financial_layout = [
             ),
         ]
     ),
+]
+
+scenario_layout = [
+    html.H1("Scenario Analysis", style={"textAlign": "center"}),
+    html.H4(
+        "Create your Scenario, then hit 'Compute'. Hit 'Reset' to reset to upload parameters",
+        style={"textAlign": "center"},
+    ),
+    html.Hr(),
+    dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dcc.Button(
+                        "Compute Scenario",
+                        id="compute-scenario",
+                        n_clicks=0,
+                        className="w-100",
+                    )
+                ],
+                md=6,
+            ),
+            dbc.Col(
+                [
+                    dcc.Button(
+                        "Reset values", id="reset-values", n_clicks=0, className="w-100"
+                    )
+                ],
+                md=6,
+            ),
+        ]
+    ),
+    html.Hr(),
+    html.Div(id="scenario-input"),
 ]

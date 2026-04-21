@@ -15,6 +15,7 @@ app = Dash(
 app.layout = dbc.Container(
     [
         dcc.Store(id="params-data-store", storage_type="session"),
+        dcc.Store(id="scenario-params-store", storage_type="session"),
         dcc.Store(id="sales-data-store", storage_type="session"),
         dcc.Store(id="budgets-data-store", storage_type="session"),
         dcc.Store(id="cashflow-data-store", storage_type="session"),
@@ -25,6 +26,7 @@ app.layout = dbc.Container(
                 dbc.Tab(label="Upload & Preview", tab_id="tab-upload"),
                 dbc.Tab(label="Budgets", tab_id="tab-budgets"),
                 dbc.Tab(label="Financial", tab_id="tab-financial"),
+                dbc.Tab(label="Scenario Analysis", tab_id="tab-scenario"),
             ],
         ),
         html.Div(id="tab-content"),
