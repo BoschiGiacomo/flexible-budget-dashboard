@@ -4,7 +4,60 @@ from dash import dcc, html
 
 
 def build_scenario_layout(params: dict) -> list:
-    return []
+
+    static_tab: list = [html.H5("Overhead Parameters", style={"textAlign": "center"})]
+
+    for key, value in params["overhead"].items():
+        if key != "total":
+            static_tab.append(
+                dbc.Row(
+                    [
+                        dbc.Col(dbc.Label(key.replace("_", " ").title()), md=4),
+                        dbc.Col(
+                            dbc.Input(
+                                type="number",
+                                value=value,
+                                min=0,
+                                id={
+                                    "type": "scenario-input",
+                                    "param": f"overhead{key}",
+                                },
+                            ),
+                            md=8,
+                        ),
+                    ]
+                )
+            )
+
+    static_tab.extend(
+        [
+            html.Hr(),
+            dbc.Row(
+                [
+                    dbc.Col(dbc.Label("Materials Inventory Ratio"), md=4),
+                    dbc.Col(
+                        dbc.Input(
+                            type="number",
+                            value=params["raw_materials_inventory"][
+                                "ending_inventory_rate"
+                            ],
+                            min=0,
+                            max=1,
+                            id={
+                                "type": "scenario-input",
+                                "param": "raw_materials_inventory.ending_inventory_rate",
+                            },
+                        ),
+                        md=8,
+                    ),
+                ]
+            ),
+        ]
+    )
+
+    tabs = [static_tab]
+
+    return tabs
 
 
 upload_style = {
