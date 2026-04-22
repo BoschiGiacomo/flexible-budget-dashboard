@@ -55,6 +55,49 @@ def build_scenario_layout(params: dict) -> list:
         ]
     )
 
+    static_tab.append(html.Hr())
+    static_tab.append(
+        html.H4("Cash Payment Policies: Materials", style={"textAlign": "center"})
+    )
+
+    for policy_name, rates in params["cash_payment_policies"].items():
+        if policy_name.startswith("overhead_payment"):
+            continue
+
+        static_tab.append(
+            html.H4(
+                f"Payment Policies: {policy_name.replace('_', ' ').title()}",
+                style={"textAlign": "center"},
+            )
+        )
+
+        policy_cols = []
+
+        for idx, value in enumerate(rates):
+            policy_cols.append(
+                dbc.Col(
+                    [
+                        dbc.Row(dbc.Label(f"Paid lag {idx}")),
+                        dbc.Row(
+                            dbc.Input(
+                                type="number",
+                                value=value,
+                                min=0,
+                                max=1,
+                                id={
+                                    "type": "scenario-input",
+                                    "param": f"cash_payment_policies.{policy_name}.{idx}",
+                                },
+                            ),
+                        ),
+                    ],
+                    md=4,
+                )
+            )
+
+        static_tab.append(dbc.Row(policy_cols))
+        static_tab.append(html.Hr())
+
     tabs = [static_tab]
 
     return tabs
