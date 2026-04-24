@@ -20,7 +20,7 @@ def build_scenario_layout(params: dict) -> list:
                                 min=0,
                                 id={
                                     "type": "scenario-input",
-                                    "param": f"overhead{key}",
+                                    "param": f"overhead.{key}",
                                 },
                             ),
                             md=8,
@@ -56,9 +56,6 @@ def build_scenario_layout(params: dict) -> list:
     )
 
     static_tab.append(html.Hr())
-    static_tab.append(
-        html.H4("Cash Payment Policies: Materials", style={"textAlign": "center"})
-    )
 
     for policy_name, rates in params["cash_payment_policies"].items():
         if policy_name.startswith("overhead_payment"):
@@ -98,9 +95,122 @@ def build_scenario_layout(params: dict) -> list:
         static_tab.append(dbc.Row(policy_cols))
         static_tab.append(html.Hr())
 
-    tabs = [static_tab]
+    # here starts building the per product tabs
+    product_tabs_contents = []
 
-    return tabs
+    skip = {"name", "lp_coefficients"}
+    nested = {"direct_labor", "raw_materials"}
+
+    for code, product in params["products"].items():
+        tab = []
+        tab.append(html.H4(f"{product['name']} - {code}"))
+        tab.append(html.Hr())
+
+        tab.append(
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Label("Sales Multiplier"),
+                        md=4,
+                    ),
+                    dbc.Col(
+                        dbc.Input(
+                            type="number",
+                            value=params["sales_multipliers"][code],
+                            min=0,
+                            id={
+                                "type": "scenario-input",
+                                "param": f"sales_multipliers.{code}",
+                            },
+                        )
+                    ),
+                ]
+            )
+        )
+
+        for key, value in product.items():
+            if key in skip or key in nested:
+                continue
+            tab.append(
+                dbc.Row(
+                    [
+                        dbc.Col(dbc.Label(key.replace("_", " ").title()), md=4),
+                        dbc.Col(
+                            dbc.Input(
+                                type="number",
+                                value=value,
+                                min=0,
+                                id={
+                                    "type": "scenario-input",
+                                    "param": f"products.{code}.{key}",
+                                },
+                            ),
+                            md=8,
+                        ),
+                    ]
+                )
+            )
+
+        for group in nested:
+            tab.append(html.Hr())
+            tab.append(html.H5(group.replace("_", " ").title()))
+
+            for key, value in product[group].items():
+                tab.append(
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Label(key.replace("_", " ").title()), md=4),
+                            dbc.Col(
+                                dbc.Input(
+                                    type="number",
+                                    value=value,
+                                    min=0,
+                                    id={
+                                        "type": "scenario-input",
+                                        "param": f"products.{code}.{group}.{key}",
+                                    },
+                                ),
+                                md=8,
+                            ),
+                        ]
+                    )
+                )
+
+        tab.append(html.Hr())
+        tab.append(html.H5("Cash Collection Policy"))
+        collection_cols = []
+
+        for idx, value in enumerate(params["cash_collection_policies"][code]):
+            collection_cols.append(
+                dbc.Col(
+                    [
+                        dbc.Row(dbc.Label(f"Collected lag {idx}")),
+                        dbc.Row(
+                            dbc.Input(
+                                type="number",
+                                value=value,
+                                min=0,
+                                max=1,
+                                id={
+                                    "type": "scenario-input",
+                                    "param": f"cash_collection_policies.{code}.{idx}",
+                                },
+                            )
+                        ),
+                    ],
+                    md=4,
+                )
+            )
+
+        tab.append(dbc.Row(collection_cols))
+
+        product_tabs_contents.append(tab)
+
+    all_tabs = [dbc.Tab(static_tab, label="Global")]
+    for code, tab_content in zip(params["products"].keys(), product_tabs_contents):
+        all_tabs.append(dbc.Tab(tab_content, label=code))
+
+    return [dbc.Tabs(all_tabs)]
 
 
 upload_style = {

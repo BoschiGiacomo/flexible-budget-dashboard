@@ -40,6 +40,9 @@ def store_params_data(contents, filename):
         raise PreventUpdate
 
     data = transforms.parse_contents(contents, filename)
+    # Initialization for the sales multipliers, to decide if this is correct approach
+    # i don't fully like the idea of modifying silently the original upload
+    data["data"]["sales_multipliers"] = {code: 1.0 for code in data["data"]["products"]}
 
     return data
 
