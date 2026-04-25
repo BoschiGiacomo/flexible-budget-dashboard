@@ -298,17 +298,33 @@ upload_layout = [
 budgets_layout = [
     html.H1("Budgets view", style={"textAlign": "center"}),
     html.Hr(),
-    dbc.Col(
-        dcc.RadioItems(
-            id="budgets-view-mode",
-            options=[
-                {"label": "Monthly", "value": "monthly"},
-                {"label": "Quarterly", "value": "quarterly"},
-            ],
-            value="monthly",
-            inline=True,
-        ),
-        className="d-flex justify-content-center align-items-center",
+    dbc.Row(
+        [
+            dbc.Col(
+                dcc.RadioItems(
+                    id="budgets-view-mode",
+                    options=[
+                        {"label": "Monthly", "value": "monthly"},
+                        {"label": "Quarterly", "value": "quarterly"},
+                    ],
+                    value="monthly",
+                    inline=True,
+                ),
+                className="d-flex justify-content-center",
+            ),
+            dbc.Col(
+                dcc.RadioItems(
+                    id="budgets-scenario-toggle",
+                    options=[
+                        {"label": "Base", "value": "base"},
+                        {"label": "Scenario", "value": "scenario"},
+                    ],
+                    value="base",
+                    inline=True,
+                ),
+                className="d-flex justify-content-center",
+            ),
+        ]
     ),
     html.Hr(),
     dbc.Accordion(
@@ -440,17 +456,33 @@ budgets_layout = [
 financial_layout = [
     html.H1("Financial Overview & Summary", style={"textAlign": "center"}),
     html.Hr(),
-    dbc.Col(
-        dcc.RadioItems(
-            id="cashflow-view-mode",
-            options=[
-                {"label": "Monthly", "value": "monthly"},
-                {"label": "Quarterly", "value": "quarterly"},
-            ],
-            value="monthly",
-            inline=True,
-        ),
-        className="d-flex justify-content-center align-items-center",
+    dbc.Row(
+        [
+            dbc.Col(
+                dcc.RadioItems(
+                    id="cashflow-view-mode",
+                    options=[
+                        {"label": "Monthly", "value": "monthly"},
+                        {"label": "Quarterly", "value": "quarterly"},
+                    ],
+                    value="monthly",
+                    inline=True,
+                ),
+                className="d-flex justify-content-center",
+            ),
+            dbc.Col(
+                dcc.RadioItems(
+                    id="cashflow-scenario-toggle",
+                    options=[
+                        {"label": "Base", "value": "base"},
+                        {"label": "Scenario", "value": "scenario"},
+                    ],
+                    value="base",
+                    inline=True,
+                ),
+                className="d-flex justify-content-center",
+            ),
+        ]
     ),
     dbc.Accordion(
         [
