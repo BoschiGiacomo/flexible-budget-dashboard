@@ -53,7 +53,7 @@ def store_params_data(contents, filename):
 
 # Read scenario input and update store with set_nested
 @callback(
-    Output("scenario-params-store", "data"),
+    Output("scenario-params-store", "data", allow_duplicate=True),
     Input("compute-scenario", "n_clicks"),
     State({"type": "scenario-input", "param": ALL}, "value"),
     State({"type": "scenario-input", "param": ALL}, "id"),
@@ -222,13 +222,17 @@ def store_computed_scenario(sales_ts, params_ts, sales_data, scenario_data):
     Output("labor-budget-table", "rowData"),
     Output("labor-budget-table", "columnDefs"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
     Input("budgets-view-mode", "value"),
+    Input("budgets-scenario-toggle", "value"),
 )
-def update_budget_tables(data, view_mode):
-    if data is None:
+def update_budget_tables(data, scenario_data, view_mode, scenario_toggle):
+
+    store = scenario_data if scenario_toggle == "scenario" else data
+    if store is None:
         raise PreventUpdate
 
-    data_df = transforms.reconstruct_df(data)
+    data_df = transforms.reconstruct_df(store)
 
     period_col = "month"
 
@@ -331,14 +335,32 @@ def update_budget_tables(data, view_mode):
     Output("contribution-margin-table", "columnDefs"),
     Input("cashflow-data-store", "data"),
     Input("budgets-data-store", "data"),
+    Input("cashflow-scenario-store", "data"),
+    Input("budgets-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
-    if cashflow_data is None or budgets_data is None:
+def update_cashflow_tables(
+    cashflow_data,
+    budgets_data,
+    cashflow_scenario,
+    budgets_scenario,
+    cashflow_view_mode,
+    scenario_toggle,
+):
+
+    if scenario_toggle == "scenario":
+        cashflow_store = cashflow_scenario
+        budgets_store = budgets_scenario
+    else:
+        cashflow_store = cashflow_data
+        budgets_store = budgets_data
+
+    if cashflow_store is None or budgets_store is None:
         raise PreventUpdate
 
-    cashflow_df = transforms.reconstruct_df(cashflow_data)
-    budgets_df = transforms.reconstruct_df(budgets_data)
+    cashflow_df = transforms.reconstruct_df(cashflow_store)
+    budgets_df = transforms.reconstruct_df(budgets_store)
 
     collect_rows = None
     collect_cols = None
