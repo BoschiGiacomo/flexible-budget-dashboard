@@ -110,3 +110,18 @@ def to_grid(data_df: pd.DataFrame, cols: list):
         for c, name in zip(subset.columns, pretty_labels(list(subset.columns)))
     ]
     return rows, col_defs
+
+
+# mutates input dictionary in place, based on the path of strings inserted, used in
+# unpacking scenario analysis inputs
+def set_nested(d: dict, path: str, value) -> None:
+    keys = path.split(".")
+
+    for key in keys[:-1]:
+        d = d[int(key)] if key.isdigit() else d[key]
+
+    last = keys[-1]
+    if last.isdigit():
+        d[int(last)] = value
+    else:
+        d[last] = value

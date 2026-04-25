@@ -1,3 +1,4 @@
+import copy
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -32,6 +33,7 @@ def store_sales_data(contents, filename):
 # Store uploaded parameters data
 @callback(
     Output("params-data-store", "data"),
+    Output("scenario-params-store", "data"),
     Input("params-data-upload", "contents"),
     State("params-data-upload", "filename"),
 )
@@ -44,7 +46,9 @@ def store_params_data(contents, filename):
     # i don't fully like the idea of modifying silently the original upload
     data["data"]["sales_multipliers"] = {code: 1.0 for code in data["data"]["products"]}
 
-    return data
+    scenario_data = copy.deepcopy(data)
+
+    return data, scenario_data
 
 
 # Update sales data graph
