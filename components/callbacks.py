@@ -191,6 +191,26 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
     )
 
 
+@callback(
+    Output("budgets-scenario-store", "data"),
+    Output("cashflow-scenario-store", "data"),
+    Input("sales-data-store", "modified_timestamp"),
+    Input("scenario-params-store", "modified_timestamp"),
+    State("sales-data-store", "data"),
+    State("scenario-params-store", "data"),
+)
+def store_computed_scenario(sales_ts, params_ts, sales_data, scenario_data):
+    if sales_data is None or scenario_data is None:
+        raise PreventUpdate
+
+    budget_df, cashflow_df = budgets.compute_budgets(sales_data, scenario_data)
+
+    return (
+        transforms.deconstruct_df(budget_df),
+        transforms.deconstruct_df(cashflow_df),
+    )
+
+
 # Retrieve budgets from data sotre and update all the bugets
 @callback(
     Output("sales-budget-table", "rowData"),

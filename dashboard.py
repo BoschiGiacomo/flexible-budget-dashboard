@@ -19,6 +19,8 @@ app.layout = dbc.Container(
         dcc.Store(id="sales-data-store", storage_type="session"),
         dcc.Store(id="budgets-data-store", storage_type="session"),
         dcc.Store(id="cashflow-data-store", storage_type="session"),
+        dcc.Store(id="budgets-scenario-store", storage_type="session"),
+        dcc.Store(id="cashflow-scenario-store", storage_type="session"),
         dbc.Tabs(
             id="tabs",
             active_tab="tab-upload",
