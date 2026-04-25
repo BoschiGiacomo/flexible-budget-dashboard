@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Input, Output, State, callback, html
+from dash import Input, Output, State, callback, html, ALL
 from dash.exceptions import PreventUpdate
 
 from components import tabs
@@ -49,6 +49,28 @@ def store_params_data(contents, filename):
     scenario_data = copy.deepcopy(data)
 
     return data, scenario_data
+
+
+# Read scenario input and update store with set_nested
+@callback(
+    Output("scenario-params-store", "data"),
+    Input("compute-scenario", "n_clicks"),
+    State({"type": "scenario-input", "param": ALL}, "value"),
+    State({"type": "scenario-input", "param": ALL}, "id"),
+    State("scenario-params-store", "data"),
+    prevent_initial_call=True,
+)
+def update_scenario(n_clicks, values, ids, scenario_params):
+    if not n_clicks:
+        raise PreventUpdate
+
+    params = copy.deepcopy(scenario_params)
+
+    for id_, value in zip(ids, values):
+        if value is not None:
+            transforms.set_nested(params["data"], id_["param"], value)
+
+    return params
 
 
 # Update sales data graph
