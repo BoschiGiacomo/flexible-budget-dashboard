@@ -51,6 +51,18 @@ def store_params_data(contents, filename):
     return data, scenario_data
 
 
+# reset parameters to baseline
+@callback(
+    Output("scenario-params-store", "data", allow_duplicate=True),
+    Input("reset-values", "n_clicks"),
+    State("params-data-store", "data"),
+    prevent_initial_call=True,
+)
+def reset_scenario_params(button_clicks, base_params):
+    if base_params is None:
+        raise PreventUpdate
+    return copy.deepcopy(base_params)
+
 # Read scenario input and update store with set_nested
 @callback(
     Output("scenario-params-store", "data", allow_duplicate=True),
