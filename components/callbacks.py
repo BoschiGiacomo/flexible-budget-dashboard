@@ -1280,9 +1280,10 @@ def build_cm_waterfall(base_data, scenario_data, view_mode, product, scenario_to
 @callback(
     Output("scenario-input", "children"),
     Input("tabs", "active_tab"),
+    Input("scenario-params-store", "modified_timestamp"),
     State("scenario-params-store", "data"),
 )
-def populate_scenario_tab(active_tab, scenario_params):
+def populate_scenario_tab(active_tab, timestamp, scenario_params):
     if active_tab != "tab-scenario" or scenario_params is None:
         raise PreventUpdate
 
