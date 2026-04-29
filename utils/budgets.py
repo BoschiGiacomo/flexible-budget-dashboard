@@ -120,7 +120,13 @@ def compute_cashflow(sales_df, cash_collection_df) -> pd.DataFrame:
 
 def compute_payments(budgets_df, payment_policies, overhead_total) -> pd.DataFrame:
     payments_df = budgets_df[
-        ["product", "month", "expense_for_materials", "total_direct_labor_cost"]
+        [
+            "product",
+            "month",
+            "expense_for_materials",
+            "total_direct_labor_cost",
+            "total_labor_time",
+        ]
     ].copy()
 
     for idx, (mat_policy, labor_policy) in enumerate(payment_policies):
@@ -154,18 +160,30 @@ def compute_payments(budgets_df, payment_policies, overhead_total) -> pd.DataFra
 
     payments_df["overhead_payment"] = 0.0
 
-    n_products = payments_df["product"].nunique()
+    payments_df["quarter"] = (
+        pd.to_datetime(payments_df["month"]).dt.to_period("Q").astype("str")
+    )
 
-    quarter_last_months = payments_df.groupby(
-        pd.to_datetime(payments_df["month"]).dt.to_period("Q")
-    )["month"].transform("max")
+    quarter_last_months = payments_df.groupby(payments_df["quarter"])[
+        "month"
+    ].transform("max")
 
-    # Overhead is divided by the number of products just for the sake of simplicity and
-    # visualization, the overhead is not per product, but this is the only way i found
-    # to make it work.
-    # it just works, i probably will come up with something less hacky later
-    payments_df.loc[payments_df["month"] == quarter_last_months, "overhead_payment"] = (
-        overhead_total / n_products
+    # capacity costs allocation, based on the quantity of labor as a driver, if there
+    # is time, consider multiple driver allocation
+
+    quarterly_hours = payments_df.groupby(["product", "quarter"])[
+        "total_labor_time"
+    ].transform("sum")
+    total_hours = payments_df.groupby("quarter")["total_labor_time"].transform("sum")
+    payments_df["labor_ratio"] = quarterly_hours / total_hours
+
+    mask = payments_df["month"] == quarter_last_months
+    payments_df.loc[mask, "overhead_payment"] = (
+        overhead_total * payments_df.loc[mask, "labor_ratio"]
+    )
+
+    payments_df.drop(
+        columns=["quarter", "total_labor_time", "labor_ratio"], inplace=True
     )
 
     return payments_df
