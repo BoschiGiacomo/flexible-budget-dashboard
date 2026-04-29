@@ -1,9 +1,9 @@
-from operator import call
+import copy
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Input, Output, State, callback, html
+from dash import Input, Output, State, callback, html, ALL
 from dash.exceptions import PreventUpdate
 
 from components import tabs
@@ -33,6 +33,7 @@ def store_sales_data(contents, filename):
 # Store uploaded parameters data
 @callback(
     Output("params-data-store", "data"),
+    Output("scenario-params-store", "data"),
     Input("params-data-upload", "contents"),
     State("params-data-upload", "filename"),
 )
@@ -41,8 +42,47 @@ def store_params_data(contents, filename):
         raise PreventUpdate
 
     data = transforms.parse_contents(contents, filename)
+    # Initialization for the sales multipliers, to decide if this is correct approach
+    # i don't fully like the idea of modifying silently the original upload
+    data["data"]["sales_multipliers"] = {code: 1.0 for code in data["data"]["products"]}
 
-    return data
+    scenario_data = copy.deepcopy(data)
+
+    return data, scenario_data
+
+
+# reset parameters to baseline
+@callback(
+    Output("scenario-params-store", "data", allow_duplicate=True),
+    Input("reset-values", "n_clicks"),
+    State("params-data-store", "data"),
+    prevent_initial_call=True,
+)
+def reset_scenario_params(button_clicks, base_params):
+    if base_params is None:
+        raise PreventUpdate
+    return copy.deepcopy(base_params)
+
+# Read scenario input and update store with set_nested
+@callback(
+    Output("scenario-params-store", "data", allow_duplicate=True),
+    Input("compute-scenario", "n_clicks"),
+    State({"type": "scenario-input", "param": ALL}, "value"),
+    State({"type": "scenario-input", "param": ALL}, "id"),
+    State("scenario-params-store", "data"),
+    prevent_initial_call=True,
+)
+def update_scenario(n_clicks, values, ids, scenario_params):
+    if not n_clicks:
+        raise PreventUpdate
+
+    params = copy.deepcopy(scenario_params)
+
+    for id_, value in zip(ids, values):
+        if value is not None:
+            transforms.set_nested(params["data"], id_["param"], value)
+
+    return params
 
 
 # Update sales data graph
@@ -163,6 +203,26 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
     )
 
 
+@callback(
+    Output("budgets-scenario-store", "data"),
+    Output("cashflow-scenario-store", "data"),
+    Input("sales-data-store", "modified_timestamp"),
+    Input("scenario-params-store", "modified_timestamp"),
+    State("sales-data-store", "data"),
+    State("scenario-params-store", "data"),
+)
+def store_computed_scenario(sales_ts, params_ts, sales_data, scenario_data):
+    if sales_data is None or scenario_data is None:
+        raise PreventUpdate
+
+    budget_df, cashflow_df = budgets.compute_budgets(sales_data, scenario_data)
+
+    return (
+        transforms.deconstruct_df(budget_df),
+        transforms.deconstruct_df(cashflow_df),
+    )
+
+
 # Retrieve budgets from data sotre and update all the bugets
 @callback(
     Output("sales-budget-table", "rowData"),
@@ -174,13 +234,17 @@ def store_budget_data(sales_ts, params_ts, sales_data, params_data):
     Output("labor-budget-table", "rowData"),
     Output("labor-budget-table", "columnDefs"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
     Input("budgets-view-mode", "value"),
+    Input("budgets-scenario-toggle", "value"),
 )
-def update_budget_tables(data, view_mode):
-    if data is None:
+def update_budget_tables(data, scenario_data, view_mode, scenario_toggle):
+
+    store = scenario_data if scenario_toggle == "scenario" else data
+    if store is None:
         raise PreventUpdate
 
-    data_df = transforms.reconstruct_df(data)
+    data_df = transforms.reconstruct_df(store)
 
     period_col = "month"
 
@@ -283,14 +347,32 @@ def update_budget_tables(data, view_mode):
     Output("contribution-margin-table", "columnDefs"),
     Input("cashflow-data-store", "data"),
     Input("budgets-data-store", "data"),
+    Input("cashflow-scenario-store", "data"),
+    Input("budgets-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
-    if cashflow_data is None or budgets_data is None:
+def update_cashflow_tables(
+    cashflow_data,
+    budgets_data,
+    cashflow_scenario,
+    budgets_scenario,
+    cashflow_view_mode,
+    scenario_toggle,
+):
+
+    if scenario_toggle == "scenario":
+        cashflow_store = cashflow_scenario
+        budgets_store = budgets_scenario
+    else:
+        cashflow_store = cashflow_data
+        budgets_store = budgets_data
+
+    if cashflow_store is None or budgets_store is None:
         raise PreventUpdate
 
-    cashflow_df = transforms.reconstruct_df(cashflow_data)
-    budgets_df = transforms.reconstruct_df(budgets_data)
+    cashflow_df = transforms.reconstruct_df(cashflow_store)
+    budgets_df = transforms.reconstruct_df(budgets_store)
 
     collect_rows = None
     collect_cols = None
@@ -441,15 +523,32 @@ def update_cashflow_tables(cashflow_data, budgets_data, cashflow_view_mode):
 @callback(
     Output("sales-stacked-bar-graph", "figure"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("budgets-view-mode", "value"),
+    Input("budgets-scenario-toggle", "value"),
 )
-def build_sales_summary(budgets_df):
-    if budgets_df is None:
+def build_sales_summary(base_df, scenario_df, view_mode, scenario_toggle):
+    store = scenario_df if scenario_toggle == "scenario" else base_df
+
+    if store is None:
         raise PreventUpdate
 
-    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df = transforms.reconstruct_df(store)
+
+    period_col = "month"
+
+    if view_mode == "quarterly":
+        period_col = "quarter"
+
+        budgets_df["quarter"] = (
+            pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+        )
+
+        budgets_df = budgets_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
     fig = px.bar(
         budgets_df,
-        x="month",
+        x=period_col,
         y="revenue",
         color="product",
         custom_data=["sales_units"],
@@ -464,18 +563,28 @@ def build_sales_summary(budgets_df):
             "<extra></extra>"
         )
     )
+
+    fig.update_xaxes(rangeslider_visible=True)
+
     return fig
 
 
+# It makes no sense for the inventory to be aggregated over quarters; so for now
+# it won't be supported, maybe find a way to add it later
 @callback(
     Output("inventory-movement-graph", "figure"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("budgets-scenario-toggle", "value"),
 )
-def build_inventory_movement(budgets_df):
-    if budgets_df is None:
+def build_inventory_movement(base_df, scenario_df, scenario_toggle):
+
+    store = scenario_df if scenario_toggle == "scenario" else base_df
+
+    if store is None:
         raise PreventUpdate
 
-    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df = transforms.reconstruct_df(store)
 
     inv_df = budgets_df[["product", "month", "beginning_inv", "desired_end_inv"]].copy()
     inv_df["month"] = pd.to_datetime(inv_df["month"])
@@ -495,6 +604,8 @@ def build_inventory_movement(budgets_df):
         color="product",
         line_dash="type",
     )
+
+    fig.update_xaxes(rangeslider_visible=True)
 
     return fig
 
@@ -582,15 +693,24 @@ def populate_cashflow_product_dropdown(cashflow_df, params):
     Input("waterfall-product-dropdown", "value"),
     Input("waterfall-mode", "value"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("budgets-scenario-toggle", "value"),
 )
-def build_inventory_waterfall(quarters, product, mode, budgets_df):
-    if quarters is None or product is None or budgets_df is None:
+def build_inventory_waterfall(
+    quarters, product, mode, base_df, scenario_df, scenario_toggle
+):
+    if quarters is None or product is None:
         raise PreventUpdate
 
     if isinstance(quarters, str):
         quarters = [quarters]
 
-    budgets_df = transforms.reconstruct_df(budgets_df)
+    store = scenario_df if scenario_toggle == "scenario" else base_df
+
+    if store is None:
+        raise PreventUpdate
+
+    budgets_df = transforms.reconstruct_df(store)
     budgets_df["quarter"] = (
         pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
     )
@@ -656,19 +776,35 @@ def build_inventory_waterfall(quarters, product, mode, budgets_df):
 @callback(
     Output("materials-expenses-stacked", "figure"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("budgets-scenario-toggle", "value"),
+    Input("budgets-view-mode", "value"),
 )
-def build_materials_expense_bar(budgets_df):
-    if budgets_df is None:
+def build_materials_expense_bar(base_df, scenario_df, scenario_toggle, view_mode):
+    store = scenario_df if scenario_toggle == "scenario" else base_df
+
+    if store is None:
         raise PreventUpdate
 
-    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df = transforms.reconstruct_df(store)
     budgets_df.dropna(subset=["expense_for_materials"], inplace=True)
     # Nans are dropped ATM, which means the last 2 months gets always dropped
     # this might change if a NaN handling policy is introduced in the budgets calculation
 
+    period_col = "month"
+
+    if view_mode == "quarterly":
+        period_col = "quarter"
+
+        budgets_df["quarter"] = (
+            pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+        )
+
+        budgets_df = budgets_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
+
     fig = px.bar(
         budgets_df,
-        x="month",
+        x=period_col,
         y="expense_for_materials",
         custom_data=["materials_purchases"],
         color="product",
@@ -685,23 +821,40 @@ def build_materials_expense_bar(budgets_df):
         )
     )
 
+    fig.update_xaxes(rangeslider_visible=True)
+
     return fig
 
 
 @callback(
     Output("labor-expenses-stacked", "figure"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("budgets-scenario-toggle", "value"),
+    Input("budgets-view-mode", "value"),
 )
-def build_labor_expense_bar(budgets_df):
-    if budgets_df is None:
+def build_labor_expense_bar(base_df, scenario_df, scenario_toggle, view_mode):
+    store = scenario_df if scenario_toggle == "scenario" else base_df
+
+    if store is None:
         raise PreventUpdate
 
-    budgets_df = transforms.reconstruct_df(budgets_df)
+    budgets_df = transforms.reconstruct_df(store)
     budgets_df.dropna(subset=["total_direct_labor_cost"], inplace=True)
+
+    period_col = "month"
+
+    if view_mode == "quarterly":
+        period_col = "quarter"
+
+        budgets_df["quarter"] = (
+            pd.to_datetime(budgets_df["month"]).dt.to_period("Q").astype("str")
+        )
+        budgets_df = budgets_df.groupby(["product", "quarter"]).sum(numeric_only=True).reset_index()  # type: ignore
 
     fig = px.bar(
         budgets_df,
-        x="month",
+        x=period_col,
         y="total_direct_labor_cost",
         color="product",
         custom_data=["total_labor_time"],
@@ -717,6 +870,8 @@ def build_labor_expense_bar(budgets_df):
         )
     )
 
+    fig.update_xaxes(rangeslider_visible=True)
+
     return fig
 
 
@@ -724,14 +879,20 @@ def build_labor_expense_bar(budgets_df):
 @callback(
     Output("cash-revenue-line-chart", "figure"),
     Input("cashflow-data-store", "data"),
+    Input("cashflow-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
     Input("cashvrevenue-product-dropdown", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def build_cash_revenue_chart(cashflow_data, view_mode, products):
-    if cashflow_data is None:
+def build_cash_revenue_chart(
+    base_data, scenario_data, view_mode, products, scenario_toggle
+):
+    store = scenario_data if scenario_toggle == "scenario" else base_data
+
+    if store is None:
         raise PreventUpdate
 
-    cashflow_df = transforms.reconstruct_df(cashflow_data)
+    cashflow_df = transforms.reconstruct_df(store)
 
     # TODO: decide if drop nans before computation, and add range slider
 
@@ -772,14 +933,20 @@ def build_cash_revenue_chart(cashflow_data, view_mode, products):
 @callback(
     Output("variable-costs-area-chart", "figure"),
     Input("cashflow-data-store", "data"),
+    Input("cashflow-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
     Input("varpayments-product-dropdown", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def build_payments_area_chart(cashflow_data, view_mode, product):
-    if cashflow_data is None:
+def build_payments_area_chart(
+    base_data, scenario_data, view_mode, product, scenario_toggle
+):
+    store = scenario_data if scenario_toggle == "scenario" else base_data
+
+    if store is None:
         raise PreventUpdate
 
-    cashflow_df = transforms.reconstruct_df(cashflow_data)
+    cashflow_df = transforms.reconstruct_df(store)
 
     cashflow_df = cashflow_df.dropna(
         subset=["total_materials_payments", "total_labor_payments"]
@@ -812,6 +979,8 @@ def build_payments_area_chart(cashflow_data, view_mode, product):
         y=["total_materials_payments", "total_labor_payments"],
     )
 
+    fig.update_xaxes(rangeslider_visible=True)
+
     return fig
 
 
@@ -819,14 +988,20 @@ def build_payments_area_chart(cashflow_data, view_mode, product):
 @callback(
     Output("zerobar-waterfall-cashflow-chart", "figure"),
     Input("cashflow-data-store", "data"),
+    Input("cashflow-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
     Input("zerobar-waterfall-product-dropdown", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def build_net_cashflow_charts(cashflow_data, view_mode, product):
-    if cashflow_data is None:
+def build_net_cashflow_charts(
+    base_data, scenario_data, view_mode, product, scenario_toggle
+):
+    store = scenario_data if scenario_toggle == "scenario" else base_data
+
+    if store is None:
         raise PreventUpdate
 
-    cashflow_df = transforms.reconstruct_df(cashflow_data)
+    cashflow_df = transforms.reconstruct_df(store)
 
     cashflow_df = cashflow_df.dropna(
         subset=["total_cash_collected", "total_var_cost_payments", "net_cash_flow"]
@@ -936,14 +1111,17 @@ def build_net_cashflow_charts(cashflow_data, view_mode, product):
 @callback(
     Output("contribution-margin-subplot", "figure"),
     Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
     Input("cashflow-view-mode", "value"),
     Input("contrib-margin-product-dropdown", "value"),
+    Input("cashflow-scenario-toggle", "value"),
 )
-def build_cm_subplot(budget_data, view_mode, product):
-    if budget_data is None:
+def build_cm_subplot(base_data, scenario_data, view_mode, product, scenario_toggle):
+    store = scenario_data if scenario_toggle == "scenario" else base_data
+    if store is None:
         raise PreventUpdate
 
-    budget_df = transforms.reconstruct_df(budget_data)
+    budget_df = transforms.reconstruct_df(store)
 
     time_period = "month"
 
@@ -1003,16 +1181,17 @@ def build_cm_subplot(budget_data, view_mode, product):
                 )
             ]
 
-    fig = make_subplots(rows=1, cols=2, shared_xaxes=True) #TODO: sync not working, figure it out later
+    fig = make_subplots(
+        rows=1, cols=2, shared_xaxes=True
+    )  # TODO: sync not working, figure it out later
 
     for trace in bar_traces:
         fig.add_trace(trace, row=1, col=1)
     for trace in line_traces:
         fig.add_trace(trace, row=1, col=2)
 
-
     # The line plot is currently useless in showing efficiency, as scenario analysis
-    # currently won't support analysis starting from a period but will change every 
+    # currently won't support analysis starting from a period but will change every
     # value for all periods. The graph becomes more useful when efficiency can change
     # in different periods, write in report
 
@@ -1021,20 +1200,32 @@ def build_cm_subplot(budget_data, view_mode, product):
 
     return fig
 
+
+# This listens to the cashflow tab toggle because it lives in that tab, despite
+# using budgets data
 @callback(
-        Output("contribution-margin-waterfall", "figure"),
-        Input("budgets-data-store", "data"),
-        Input("cashflow-view-mode", "value"),
-        Input("contrib-margin-product-dropdown", "value"),
-        )
-def build_cm_waterfall(budget_data, view_mode, product):
-    if budget_data is None:
+    Output("contribution-margin-waterfall", "figure"),
+    Input("budgets-data-store", "data"),
+    Input("budgets-scenario-store", "data"),
+    Input("cashflow-view-mode", "value"),
+    Input("contrib-margin-product-dropdown", "value"),
+    Input("cashflow-scenario-toggle", "value"),
+)
+def build_cm_waterfall(base_data, scenario_data, view_mode, product, scenario_toggle):
+    store = scenario_data if scenario_toggle == "scenario" else base_data
+
+    if store is None:
         raise PreventUpdate
 
-    budget_df = transforms.reconstruct_df(budget_data)
+    budget_df = transforms.reconstruct_df(store)
 
     budget_df = budget_df.dropna(
-        subset=["revenue", "expense_for_materials", "total_direct_labor_cost", "contribution_margin"]
+        subset=[
+            "revenue",
+            "expense_for_materials",
+            "total_direct_labor_cost",
+            "contribution_margin",
+        ]
     )
 
     time_period = "month"
@@ -1055,7 +1246,7 @@ def build_cm_waterfall(budget_data, view_mode, product):
         case _:
             plot_df = (
                 budget_df[budget_df["product"] == product]
-                .sort_values(time_period) #type:ignore
+                .sort_values(time_period)  # type: ignore
                 .reset_index(drop=True)
             )
 
@@ -1085,6 +1276,20 @@ def build_cm_waterfall(budget_data, view_mode, product):
 
     return fig
 
+
+@callback(
+    Output("scenario-input", "children"),
+    Input("tabs", "active_tab"),
+    Input("scenario-params-store", "modified_timestamp"),
+    State("scenario-params-store", "data"),
+)
+def populate_scenario_tab(active_tab, timestamp, scenario_params):
+    if active_tab != "tab-scenario" or scenario_params is None:
+        raise PreventUpdate
+
+    return tabs.build_scenario_layout(scenario_params["data"])
+
+
 # lazy tab loader for performacne
 @callback(
     Output("tab-content", "children"),
@@ -1098,5 +1303,7 @@ def render_tab(active_tab):
             return tabs.budgets_layout
         case "tab-financial":
             return tabs.financial_layout
+        case "tab-scenario":
+            return tabs.scenario_layout
         case _:
             return html.Div("404")

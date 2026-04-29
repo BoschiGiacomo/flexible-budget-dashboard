@@ -176,6 +176,14 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
 
     params = params_payload["data"]
 
+    # This multiplies every row of the sales for a multiplier, which for the base
+    # case is always 1.0, while for the scenario analysis case it might be different
+    # based on user input
+    multipliers = params["sales_multipliers"]
+    data_df["sales_units"] = data_df.apply(
+        lambda row: row["sales_units"] * multipliers.get(row["product"], 1.0), axis=1
+    )
+
     price_df = pd.DataFrame(
         [
             {"product": code, "selling_price": product["selling_price"]}
