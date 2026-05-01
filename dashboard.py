@@ -21,6 +21,7 @@ app.layout = dbc.Container(
         dcc.Store(id="cashflow-data-store", storage_type="session"),
         dcc.Store(id="budgets-scenario-store", storage_type="session"),
         dcc.Store(id="cashflow-scenario-store", storage_type="session"),
+        dcc.Store(id="optimization-result-store", storage_type="session"),
         dbc.Tabs(
             id="tabs",
             active_tab="tab-upload",
@@ -29,6 +30,7 @@ app.layout = dbc.Container(
                 dbc.Tab(label="Budgets", tab_id="tab-budgets"),
                 dbc.Tab(label="Financial", tab_id="tab-financial"),
                 dbc.Tab(label="Scenario Analysis", tab_id="tab-scenario"),
+                dbc.Tab(label="Product Mix Optimizer", tab_id="tab-solver"),
             ],
         ),
         html.Div(id="tab-content"),
