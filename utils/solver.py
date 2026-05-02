@@ -44,17 +44,26 @@ def solve(products: dict, constraints: dict) -> dict:
         "warehouse",
     )
 
-    # TODO: add support for min units produced into the solver, and add the number
-    # of minimum units in the params.json under the products[product]["lp_coefficients"]
+    for code in products:
+        min_units = products[code].get("min_units", 0)
+        if min_units > 0:
+            prob += (lp_vars[code] >= min_units, f"min_{code}")
 
     prob.solve(pulp.PULP_CBC_CMD(msg=0))  # type: ignore
+
+    shadow_prices = {
+        name: prob.constraints[name].pi
+        for name in ["labor", "materials", "warehouse"]
+    }
+    shadow_prices.update({
+        f"min_{code}": prob.constraints[f"min_{code}"].pi
+        for code in products
+        if f"min_{code}" in prob.constraints
+    })
 
     return {
         "status": pulp.LpStatus[prob.status],
         "quantities": {code: pulp.value(lp_vars[code]) for code in products},
         "objective": pulp.value(prob.objective),
-        "shadow_prices": {
-            name: prob.constraints[name].pi
-            for name in ["labor", "materials", "warehouse"]
-        },
+        "shadow_prices": shadow_prices,
     }
