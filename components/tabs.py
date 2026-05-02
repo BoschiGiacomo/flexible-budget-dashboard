@@ -643,3 +643,98 @@ scenario_layout = [
     html.Hr(),
     html.Div(id="scenario-input"),
 ]
+
+optimization_layout = [
+    html.H1("Optimal Product Mix", style={"textAlign": "center"}),
+    html.Hr(),
+    dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dbc.Card(
+                        [
+                            dbc.CardHeader("Solver Status", className="text-center"),
+                            dbc.CardBody(
+                                html.H4(
+                                    id="solver-status",
+                                    className="card-title text-center",
+                                ),
+                            ),
+                        ]
+                    )
+                ],
+                md=6,
+            ),
+            dbc.Col(
+                [
+                    dbc.Card(
+                        [
+                            dbc.CardHeader("Optimal Profit", className="text-center"),
+                            dbc.CardBody(
+                                html.H4(
+                                    id="solver-profit",
+                                    className="card-title text-center",
+                                )
+                            ),
+                        ]
+                    )
+                ],
+                md=6,
+            ),
+        ]
+    ),
+    html.Hr(),
+    html.H3("Optimal Product Mix", style={"textAlign": "center"}),
+    dbc.Row(
+        [
+            dbc.Col(
+                [dcc.Graph(id="optimal-production-mix")],
+                md=8,
+            ),
+            dbc.Col(
+                [
+                    dag.AgGrid(
+                        id="solver-mix-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "450px", "width": "100%"},
+                    )
+                ],
+                md=4,
+            ),
+        ]
+    ),
+    html.Hr(),
+    html.H3("Constraint Analysis", style={"textAlign": "center"}),
+    dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dag.AgGrid(
+                        id="solver-constraints-table",
+                        rowData=[],
+                        columnDefs=[],
+                        defaultColDef={
+                            "sortable": True,
+                            "filter": True,
+                            "resizable": True,
+                        },
+                        columnSize="responsiveSizeToFit",
+                        style={"height": "450px", "width": "100%"},
+                    )
+                ],
+                md=6,
+            ),
+            dbc.Col(
+                [dcc.Graph(id="solver-utilization-chart")],
+                md=6,
+            ),
+        ]
+    ),
+]
