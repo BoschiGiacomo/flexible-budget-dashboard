@@ -2,9 +2,17 @@ import pulp
 
 
 def extract_constraints(params: dict) -> tuple:
-    products = {
-        code: product["lp_coefficients"] for code, product in params["products"].items()
-    }
+    products = {}
+    for code, product in params["products"].items():
+        lp = product["lp_coefficients"]
+        labor_cost = (product["direct_labor"]["minutes_per_unit"] / 60) * product["direct_labor"]["cost_per_hour"]
+        material_cost = product["raw_materials"]["kg_per_unit"] * product["raw_materials"]["cost_per_kg"]
+        products[code] = {
+            "labor_hours_per_unit": lp["labor_hours_per_unit"],
+            "material_units_per_unit": lp["material_units_per_unit"],
+            "min_units": lp.get("min_units", 0),
+            "profit_margin_per_unit": product["selling_price"] - labor_cost - material_cost,
+        }
 
     constraints = params["lp_constraints"]
 
