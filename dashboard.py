@@ -1,5 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import Dash, dcc, html
+import logging
 
 from components import callbacks, tabs
 
@@ -39,4 +40,6 @@ app.layout = dbc.Container(
 )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    log = logging.getLogger("werkzeug")
+    log.setLevel(logging.ERROR)
+    app.run()
