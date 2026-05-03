@@ -7,7 +7,7 @@ from dash import Input, Output, State, callback, html, ALL
 from dash.exceptions import PreventUpdate
 
 from components import tabs
-from utils import transforms, budgets
+from utils import transforms, budgets, solver
 
 
 # Store Uploaded sales data
@@ -62,6 +62,7 @@ def reset_scenario_params(button_clicks, base_params):
     if base_params is None:
         raise PreventUpdate
     return copy.deepcopy(base_params)
+
 
 # Read scenario input and update store with set_nested
 @callback(
@@ -221,6 +222,21 @@ def store_computed_scenario(sales_ts, params_ts, sales_data, scenario_data):
         transforms.deconstruct_df(budget_df),
         transforms.deconstruct_df(cashflow_df),
     )
+
+
+# Trigger the solver on parameters update and store results; lp constraints not
+# supported for the time being in scenario analysis
+@callback(
+    Output("optimization-result-store", "data"),
+    Input("params-data-store", "data"),
+)
+def store_optimization_results(params):
+    if params is None:
+        raise PreventUpdate
+
+    products, constraints = solver.extract_constraints(params["data"])
+
+    return solver.solve(products, constraints)
 
 
 # Retrieve budgets from data sotre and update all the bugets
@@ -1290,6 +1306,151 @@ def populate_scenario_tab(active_tab, timestamp, scenario_params):
     return tabs.build_scenario_layout(scenario_params["data"])
 
 
+# This callback populates all the graphs, tables and cards of the optimization tab
+@callback(
+    Output("solver-status", "children"),
+    Output("solver-profit", "children"),
+    Output("optimal-production-mix", "figure"),
+    Output("solver-utilization-chart", "figure"),
+    Output("solver-mix-table", "rowData"),
+    Output("solver-mix-table", "columnDefs"),
+    Output("solver-constraints-table", "rowData"),
+    Output("solver-constraints-table", "columnDefs"),
+    Input("tabs", "active_tab"),
+    State("optimization-result-store", "data"),
+    State("params-data-store", "data"),
+)
+def populate_optimization_tab(active_tab, optimization_data, params_data):
+    if active_tab != "tab-solver" or optimization_data is None or params_data is None:
+        raise PreventUpdate
+
+    status = optimization_data["status"]
+    profit = optimization_data["objective"]
+    quantities = optimization_data["quantities"]
+    params = params_data["data"]
+
+    status_text = f"Status: {status}"
+    profit_text = f"€ {profit:,.2f}"
+
+    mix_rows = []
+    for code, qty in quantities.items():
+        product = params["products"][code]
+        qty = round(qty or 0)
+        labor_cost = (product["direct_labor"]["minutes_per_unit"] / 60) * product[
+            "direct_labor"
+        ]["cost_per_hour"]
+        material_cost = (
+            product["raw_materials"]["kg_per_unit"]
+            * product["raw_materials"]["cost_per_kg"]
+        )
+        cm_per_unit = product["selling_price"] - labor_cost - material_cost
+        mix_rows.append(
+            {
+                "code": code,
+                "product": product["name"],
+                "quantity": qty,
+                "profit_contribution": round(qty * cm_per_unit, 2),
+            }
+        )
+
+    mix_df = pd.DataFrame(mix_rows)
+
+    mix_fig = px.bar(
+        mix_df,
+        x="product",
+        y="quantity",
+        color="code",
+        text="quantity",
+        custom_data=["profit_contribution"],
+        title="Optimal Product Mix",
+    )
+    mix_fig.update_traces(
+        textposition="outside",
+        texttemplate="%{text:,.0f}",
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Quantity: %{y:,.0f}<br>"
+            "Profit Contribution: €%{customdata[0]:,.2f}<br>"
+            "<extra></extra>"
+        ),
+    )
+
+    constraints = params["lp_constraints"]
+    labor_used = sum(
+        (quantities[c] or 0)
+        * params["products"][c]["lp_coefficients"]["labor_hours_per_unit"]
+        for c in quantities
+    )
+    materials_used = sum(
+        (quantities[c] or 0)
+        * params["products"][c]["lp_coefficients"]["material_units_per_unit"]
+        for c in quantities
+    )
+    warehouse_used = sum(quantities[c] or 0 for c in quantities)
+
+    util_df = pd.DataFrame(
+        [
+            {
+                "Constraint": "Labor Hours",
+                "Utilization (%)": round(
+                    labor_used / constraints["labor_hours_available"] * 100, 1
+                ),
+            },
+            {
+                "Constraint": "Material Units",
+                "Utilization (%)": round(
+                    materials_used / constraints["material_units_available"] * 100, 1
+                ),
+            },
+            {
+                "Constraint": "Warehouse",
+                "Utilization (%)": round(
+                    warehouse_used / constraints["warehouse_capacity_units"] * 100, 1
+                ),
+            },
+        ]
+    )
+
+    util_fig = px.bar(
+        util_df,
+        x="Utilization (%)",
+        y="Constraint",
+        orientation="h",
+        text="Utilization (%)",
+        title="Resource Utilization",
+        color="Utilization (%)",
+        color_continuous_scale=["green", "yellow", "red"],
+        range_color=[0, 100],
+    )
+    util_fig.update_traces(texttemplate="%{text}%", textposition="outside")
+    util_fig.update_layout(xaxis=dict(range=[0, 110]))
+    util_fig.add_vline(x=100, line_dash="dash", line_color="red")
+
+    mix_rows, mix_cols = transforms.to_grid(mix_df, ["product", "quantity", "profit_contribution"])
+
+    shadow_prices = optimization_data["shadow_prices"]
+    constraint_data = [
+        {"constraint": "Labor Hours",    "available": constraints["labor_hours_available"],    "used": round(labor_used, 2),     "slack": round(constraints["labor_hours_available"] - labor_used, 2),       "shadow_price": round(shadow_prices["labor"], 2)},
+        {"constraint": "Material Units", "available": constraints["material_units_available"], "used": round(materials_used, 2), "slack": round(constraints["material_units_available"] - materials_used, 2), "shadow_price": round(shadow_prices["materials"], 2)},
+        {"constraint": "Warehouse",      "available": constraints["warehouse_capacity_units"], "used": round(warehouse_used, 2), "slack": round(constraints["warehouse_capacity_units"] - warehouse_used, 2), "shadow_price": round(shadow_prices["warehouse"], 2)},
+    ]
+    for code, product in params["products"].items():
+        min_u = product["lp_coefficients"].get("min_units", 0)
+        if min_u > 0:
+            actual = round(quantities[code] or 0)
+            constraint_data.append({
+                "constraint": f"Min {product['name']}",
+                "available": min_u,
+                "used": actual,
+                "slack": actual - min_u,
+                "shadow_price": round(shadow_prices.get(f"min_{code}", 0), 2),
+            })
+    constraint_df = pd.DataFrame(constraint_data)
+    constraint_rows, constraint_cols = transforms.to_grid(constraint_df, ["constraint", "available", "used", "slack", "shadow_price"])
+
+    return status_text, profit_text, mix_fig, util_fig, mix_rows, mix_cols, constraint_rows, constraint_cols
+
+
 # lazy tab loader for performacne
 @callback(
     Output("tab-content", "children"),
@@ -1305,5 +1466,7 @@ def render_tab(active_tab):
             return tabs.financial_layout
         case "tab-scenario":
             return tabs.scenario_layout
+        case "tab-solver":
+            return tabs.optimization_layout
         case _:
             return html.Div("404")

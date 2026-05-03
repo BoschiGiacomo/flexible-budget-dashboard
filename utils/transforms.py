@@ -47,9 +47,6 @@ def product_json_normalize(params: dict) -> pd.DataFrame:
                 "material_units_per_unit": product["lp_coefficients"][
                     "material_units_per_unit"
                 ],
-                "profit_margin_per_unit": product["lp_coefficients"][
-                    "profit_margin_per_unit"
-                ],
             }
         )
 
