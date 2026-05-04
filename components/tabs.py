@@ -206,9 +206,9 @@ def build_scenario_layout(params: dict) -> list:
 
         product_tabs_contents.append(tab)
 
-    all_tabs = [dbc.Tab(static_tab, label="Global")]
+    all_tabs = [dbc.Tab(static_tab, label="Global", tab_id="tab-global")]
     for code, tab_content in zip(params["products"].keys(), product_tabs_contents):
-        all_tabs.append(dbc.Tab(tab_content, label=code))
+        all_tabs.append(dbc.Tab(tab_content, label=code, tab_id=f"tab-{code}"))
 
     return [dbc.Tabs(all_tabs)]
 

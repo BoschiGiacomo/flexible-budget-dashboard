@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Input, Output, State, callback, html, ALL
+from dash import Input, Output, State, callback, html, ALL, ctx
 from dash.exceptions import PreventUpdate
 
 from components import tabs
@@ -1295,15 +1295,17 @@ def build_cm_waterfall(base_data, scenario_data, view_mode, product, scenario_to
 
 @callback(
     Output("scenario-input", "children"),
-    Input("tabs", "active_tab"),
-    Input("scenario-params-store", "modified_timestamp"),
+    Input("params-data-store", "modified_timestamp"),
+    Input("reset-values", "n_clicks"),
     State("scenario-params-store", "data"),
+    State("params-data-store", "data"),
+    prevent_initial_call=True,
 )
-def populate_scenario_tab(active_tab, timestamp, scenario_params):
-    if active_tab != "tab-scenario" or scenario_params is None:
+def populate_scenario_tab(upload_ts, reset_clicks, scenario_params, base_params):
+    params = base_params if ctx.triggered_id == "reset-values" else scenario_params
+    if params is None:
         raise PreventUpdate
-
-    return tabs.build_scenario_layout(scenario_params["data"])
+    return tabs.build_scenario_layout(params["data"])
 
 
 # This callback populates all the graphs, tables and cards of the optimization tab
@@ -1451,6 +1453,16 @@ def populate_optimization_tab(active_tab, optimization_data, params_data):
     return status_text, profit_text, mix_fig, util_fig, mix_rows, mix_cols, constraint_rows, constraint_cols
 
 
+@callback(
+    Output("scenario-wrapper", "style"),
+    Input("tabs", "active_tab"),
+)
+def toggle_scenario_wrapper(active_tab):
+    if active_tab == "tab-scenario":
+        return {"display": "block"}
+    return {"display": "none"}
+
+
 # lazy tab loader for performacne
 @callback(
     Output("tab-content", "children"),
@@ -1465,7 +1477,7 @@ def render_tab(active_tab):
         case "tab-financial":
             return tabs.financial_layout
         case "tab-scenario":
-            return tabs.scenario_layout
+            return html.Div()
         case "tab-solver":
             return tabs.optimization_layout
         case _:

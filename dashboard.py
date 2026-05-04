@@ -34,6 +34,11 @@ app.layout = dbc.Container(
                 dbc.Tab(label="Product Mix Optimizer", tab_id="tab-solver"),
             ],
         ),
+        html.Div(
+            id="scenario-wrapper",
+            style={"display": "none"},
+            children=tabs.scenario_layout,
+        ),
         html.Div(id="tab-content"),
     ],
     fluid=True,
