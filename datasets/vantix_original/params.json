@@ -1,0 +1,64 @@
+{
+    "products": {
+        "CO1": {
+            "name": "SmartDesk Pro",
+            "selling_price": 75.0,
+            "inventory_ratio": 0.22,
+            "direct_labor": {
+                "cost_per_hour": 22.25,
+                "minutes_per_unit": 12
+            },
+            "raw_materials": {
+                "cost_per_kg": 5.15,
+                "kg_per_unit": 2.5
+            },
+            "lp_coefficients": {
+                "labor_hours_per_unit": 0.20,
+                "material_units_per_unit": 2.5
+            }
+        },
+        "CO2": {
+            "name": "SmartLight LED Bulbs",
+            "selling_price": 61.0,
+            "inventory_ratio": 0.35,
+            "direct_labor": {
+                "cost_per_hour": 24.0,
+                "minutes_per_unit": 24
+            },
+            "raw_materials": {
+                "cost_per_kg": 5.15,
+                "kg_per_unit": 1.6
+            },
+            "lp_coefficients": {
+                "labor_hours_per_unit": 0.40,
+                "material_units_per_unit": 1.6
+            }
+        }
+    },
+    "overhead": {
+        "factory_rent": 33300.0,
+        "utilities": 16700.0,
+        "depreciation_machinery": 27500.0,
+        "maintenance": 22000.0,
+        "supervisor_salary": 19000.0,
+        "insurance": 11400.0,
+        "total": 129900.0
+    },
+    "raw_materials_inventory": {
+        "ending_inventory_rate": 0.25
+    },
+    "cash_collection_policies": {
+        "CO1": [0.5, 0.3, 0.2],
+        "CO2": [0.75, 0.25, 0.0]
+    },
+    "cash_payment_policies": {
+        "raw_materials": [0.4, 0.4, 0.2],
+        "labor": [1.0, 0.0, 0.0],
+        "overhead_payment_month": "quarter_end"
+    },
+    "lp_constraints": {
+        "labor_hours_available": 850,
+        "material_units_available": 3500,
+        "warehouse_capacity_units": 5000
+    }
+}
