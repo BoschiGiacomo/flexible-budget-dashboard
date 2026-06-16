@@ -271,7 +271,11 @@ def compute_budgets(sales_payload, params_payload, handle_missing=False):
         params["cash_payment_policies"]["labor"],
     )
 
-    overhead_total = params["overhead"]["total"]
+    # depreciation excluded: non-cash charge, does not belong in cash outflow
+    # Use the original one for other purposes
+    overhead_total = (
+        params["overhead"]["total"] - params["overhead"]["depreciation_machinery"]
+    )
 
     payments_df = compute_payments(budgets_df, cash_payment_policies, overhead_total)
 
